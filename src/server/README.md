@@ -20,6 +20,8 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 
 No write routes. Store failures return 503 with the error type, never an empty success. CORS origins come from `ANTIBODY_CORS_ORIGINS` (default `http://localhost:5173`).
 
+If `ANTIBODY_WEB_DIST` points at a built dashboard (`src/web/dist`), it is served at `/` from the same process. The deployable image does this: `infra/containers/evidence-api/Dockerfile`, built and pushed by `.github/workflows/build-evidence-api.yml` to `ghcr.io/hackathon-corner/antibody-evidence-api`. It takes the `CLICKHOUSE_*` settings from the host environment; no `.env` is baked in.
+
 
 ## Host runner (`runner.py`)
 

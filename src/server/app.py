@@ -5,6 +5,9 @@ no release authority. When the store is unreachable it returns 503 with the
 failure, never an empty list that would read as "no evidence".
 
 Run: .venv/bin/uvicorn server.app:app --app-dir src --port 8000
+
+When `ANTIBODY_WEB_DIST` names a built dashboard (`src/web/dist`), it is served at `/`
+from the same process, so one container carries both the API and the dashboard.
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from typing import Callable, Protocol
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from contracts import Event
 
@@ -34,7 +38,7 @@ def _event_json(event: Event) -> dict:
     return data
 
 
-def create_app(store_factory: Callable[[], EventStore]) -> FastAPI:
+def create_app(store_factory: Callable[[], EventStore], web_dist: str | None = None) -> FastAPI:
     app = FastAPI(title="Antibody evidence API", docs_url="/api/docs", openapi_url="/api/openapi.json")
     origins = [o for o in os.environ.get("ANTIBODY_CORS_ORIGINS", "http://localhost:5173").split(",") if o]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET"], allow_headers=[])
@@ -76,6 +80,10 @@ def create_app(store_factory: Callable[[], EventStore]) -> FastAPI:
             raise HTTPException(404, detail="no recorded events for this run")
         return {"runId": run_id, "events": [_event_json(e) for e in events]}
 
+    # Mounted last so /api/* routes take precedence over the static files.
+    if web_dist:
+        app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
+
     return app
 
 
@@ -85,4 +93,4 @@ def _default_store() -> EventStore:
     return ClickHouseEventStore.from_env()
 
 
-app = create_app(_default_store)
+app = create_app(_default_store, os.environ.get("ANTIBODY_WEB_DIST") or None)

@@ -1,0 +1,8 @@
+# Allowlist: only the evidence-api image uses the repo root as build context.
+*
+!pyproject.toml
+!src/
+src/**/__pycache__
+src/**/*.egg-info
+src/web/node_modules
+src/web/dist

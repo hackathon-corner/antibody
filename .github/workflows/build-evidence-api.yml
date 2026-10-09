@@ -1,0 +1,69 @@
+# C3 (owner: C): build the evidence API + dashboard image, smoke-test it, push to GHCR by digest.
+# The smoke test runs without ClickHouse settings, so /api/health must report 503 rather than a fake "ok".
+name: build-evidence-api
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-evidence-api.yml
+      - .dockerignore
+      - infra/containers/evidence-api/**
+      - pyproject.toml
+      - src/server/**
+      - src/contracts/**
+      - src/adapters/**
+      - src/web/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-evidence-api-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: ghcr.io/hackathon-corner/antibody-evidence-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/containers/evidence-api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/hackathon-corner/antibody
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=evidence-api
+          cache-to: type=gha,mode=max,scope=evidence-api
+
+      - name: Smoke test by digest
+        run: |
+          docker run -d --name api -p 8000:8000 "$IMAGE@${{ steps.build.outputs.digest }}"
+          for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8000/ && break; sleep 1; done
+          curl -sf http://localhost:8000/ | grep -qi '<div id="root"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/health)" = 503
+          docker logs api
+
+      - name: Record digest
+        run: |
+          echo "image: $IMAGE@${{ steps.build.outputs.digest }}" | tee -a "$GITHUB_STEP_SUMMARY"

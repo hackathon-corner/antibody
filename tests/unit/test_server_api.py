@@ -68,3 +68,11 @@ def test_api_has_no_write_routes():
 def test_runs_list_reports_timezone_aware_times():
     client = TestClient(create_app(lambda: InMemoryStore([EVENT])))
     assert client.get("/api/runs").json()["runs"] == [{"runId": "r1", "lastObservedAt": "2026-10-09T20:02:33+00:00"}]
+
+
+def test_dashboard_served_at_root_without_shadowing_api(tmp_path):
+    (tmp_path / "index.html").write_text("<!doctype html><title>dash</title>")
+    client = TestClient(create_app(lambda: InMemoryStore([EVENT]), web_dist=str(tmp_path)))
+    assert "dash" in client.get("/").text
+    assert client.get("/api/runs").json()["runs"][0]["runId"] == "r1"
+    assert client.get("/api/runs/nope/events").status_code == 404
