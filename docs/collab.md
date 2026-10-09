@@ -17,7 +17,7 @@ How to use this file:
 - The spike image is in a **private** GHCR package (`ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b…`). The host either needs a read-only pull token, or we make the package public (it's a deliberately vulnerable app, so prefer the token).
 - With Docker unavailable on B's machine, the `build-target` GitHub Actions workflow in PR #1 can produce baseline and candidate images by digest. Want to use it for B1's `baseline_image_digest`?
 
-**Update (C, 2026-10-09):** C has created the Akash account (console.akash.network). B, please don't create a second one. Plan is Akash for both services (B's Juice Shop candidate, C's evidence API + dashboard), with Render/Fly/Railway as fallback only if Akash is slow. Free event credits not yet confirmed (to ask the Akash rep on site); no deployment made yet. Image access still open: read-only GHCR pull token preferred.
+**Update (C, 2026-10-09):** C has created the Akash account (console.akash.network). B, please don't create a second one. Plan is Akash for both services (B's Juice Shop candidate, C's evidence API + dashboard), with Render/Fly/Railway as fallback only if Akash is slow. Account has $25 credit loaded; no deployment made yet. Image access still open: read-only GHCR pull token preferred.
 
 ### Q8 (C → team): Remaining sponsor accounts
 ClickHouse is done (srismart). Still needed, each with its own key in the ignored `.env` and never in chat or source:
