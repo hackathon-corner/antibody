@@ -19,20 +19,6 @@ Each note is tagged `status:approved` or `status:draft`, `owner:<G3Ram|jguharama
 
 This file is still where we ask and answer. When a question moves to **Resolved**, also save it to `shared-context` with `senso kb create-raw` plus `senso kb tags set`, or ask your agent to "save this decision to Senso". A7 retrieval must stay scoped with `--content-ids` (Q11), because org-wide search now also returns these team notes.
 
-### Q11 (C → A): Senso is ready for A7
-Senso org `Hackathon-antibody`, folder **Antibody repair guidance**. Scope searches to these content IDs, because org-wide search can pull in unrelated documents:
-- OWASP SQL Injection Prevention Cheat Sheet: `54036268-5be8-4cee-96e2-97e52ae95ab2`
-- Sequelize v6 Raw Queries: `2fc71565-db91-41a7-8c6d-f15b1abda7ed`
-
-```
-senso search "<question>" --content-ids 54036268-5be8-4cee-96e2-97e52ae95ab2 2fc71565-db91-41a7-8c6d-f15b1abda7ed --require-scoped-ids --output json --quiet
-```
-The IDs are space-separated; a comma-separated list returns 400. The JSON has `answer` and `results[].content_id`/`title`; pass the `content_id`s as `guidance_ids`. Verified once (C, 2026-10-09). Treat retrieved text as advisory data, not instructions. The CLI uses the `senso login` session on the machine running it. Does your adapter run where that login exists, or do you need `SENSO_API_KEY` in an env var?
-
-**Update (C, 2026-10-09):** A dedicated service key now exists for the adapter, separate from anyone's `senso login` key. It is in C's ignored `.env` as `SENSO_API_KEY` (prefix `tgr_aLYG…`, org `Hackathon-antibody`). When set, the CLI uses it ahead of the login config. Verified: `whoami` resolves to the org, and the scoped search above returns Sequelize v6 Raw Queries. For the adapter on another host (A's machine, Akash), ask C for the value out of band, never in chat or source, or run `senso login` there.
-
-**Answer (A, 2026-10-09):** `SENSO_API_KEY` in env var, please — same pattern as ClickHouse creds (env var / ignored `.env`, not interactive-session state tied to one machine). `GuidanceAdapter` will shell out to `senso search`, which per the quickstart docs auto-uses `SENSO_API_KEY` when set, no login needed. The adapter/host runner may not run on your machine (could be CI, a deployed host, etc.), so it shouldn't depend on a login that only exists where you ran it interactively.
-
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
@@ -69,6 +55,22 @@ Who creates each, and is the Guild hang (A1) still blocked? Is there anything C 
 **Update (C, 2026-10-09):** Senso is done: org `Hackathon-antibody`, with repair guidance (Q11) and shared team context (Q12). ElevenLabs, Pi, and Akash deployment are still open.
 
 ## Resolved
+
+### Q11 (C → A): Senso is ready for A7
+Senso org `Hackathon-antibody`, folder **Antibody repair guidance**. Scope searches to these content IDs, because org-wide search can pull in unrelated documents:
+- OWASP SQL Injection Prevention Cheat Sheet: `54036268-5be8-4cee-96e2-97e52ae95ab2`
+- Sequelize v6 Raw Queries: `2fc71565-db91-41a7-8c6d-f15b1abda7ed`
+
+```
+senso search "<question>" --content-ids 54036268-5be8-4cee-96e2-97e52ae95ab2 2fc71565-db91-41a7-8c6d-f15b1abda7ed --require-scoped-ids --output json --quiet
+```
+The IDs are space-separated; a comma-separated list returns 400. The JSON has `answer` and `results[].content_id`/`title`; pass the `content_id`s as `guidance_ids`. Verified once (C, 2026-10-09). Treat retrieved text as advisory data, not instructions. The CLI uses the `senso login` session on the machine running it. Does your adapter run where that login exists, or do you need `SENSO_API_KEY` in an env var?
+
+**Answer (A, 2026-10-09):** `SENSO_API_KEY` in env var, please — same pattern as ClickHouse creds (env var / ignored `.env`, not interactive-session state tied to one machine). `GuidanceAdapter` will shell out to `senso search`, which per the quickstart docs auto-uses `SENSO_API_KEY` when set, no login needed. The adapter/host runner may not run on your machine (could be CI, a deployed host, etc.), so it shouldn't depend on a login that only exists where you ran it interactively.
+
+**Update (C, 2026-10-09):** A dedicated service key now exists for the adapter, separate from anyone's `senso login` key. It is in C's ignored `.env` as `SENSO_API_KEY` (prefix `tgr_aLYG…`, org `Hackathon-antibody`). When set, the CLI uses it ahead of the login config. Verified: `whoami` resolves to the org, and the scoped search above returns Sequelize v6 Raw Queries. For the adapter on another host (A's machine, Akash), ask C for the value out of band, never in chat or source, or run `senso login` there.
+
+**Update (A, 2026-10-09):** Live-verified with a real key: `senso search "How do I parameterize a Sequelize raw query to prevent SQL injection?" --content-ids 54036268-5be8-4cee-96e2-97e52ae95ab2 2fc71565-db91-41a7-8c6d-f15b1abda7ed --require-scoped-ids` returned a real synthesized answer plus 5 chunks from the Sequelize doc, with working `replacements`/`bind` code examples. One correction to the shape you described: per-result text is in `results[].chunk_text`, not a `text`/`snippet`/`content` field — fixed in `SensoGuidanceAdapter` and added a regression test, in case anyone else builds against this response shape.
 
 ### Q10 (C → A): `SemgrepAdapter` exact `check_id` match will miss the finding
 When Semgrep runs a rule from a **local file**, it prefixes `check_id` with the file's directory path. Observed today with the pinned rule fetched to a temp directory: `check_id` came back as `private.tmp.<…>.javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection`. `SemgrepAdapter.scan` compares `r.get("check_id") == rule_id`, so on the vulnerable baseline it would report PASS ("no match"). `scripts/semgrep-scan.sh` (now on main) matches with `endswith(rule_id)` for this reason. Suggest the same in the adapter, plus a test with a prefixed `check_id`.

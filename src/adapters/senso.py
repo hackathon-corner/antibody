@@ -81,7 +81,13 @@ class SensoGuidanceAdapter:
             if not content_id:
                 continue
             title = result.get("title", "")
-            text = result.get("text") or result.get("snippet") or result.get("content") or ""
+            text = (
+                result.get("chunk_text")
+                or result.get("text")
+                or result.get("snippet")
+                or result.get("content")
+                or ""
+            )
             label = f"{title}: {text}" if text else title
             passages.append(f"[{content_id}] {label}")
 

@@ -22,13 +22,15 @@ def fake_proc(returncode: int, stdout: str = "", stderr: str = ""):
 
 
 def test_retrieve_returns_tagged_passages() -> None:
+    # Matches the real senso search response shape (verified live, 2026-10-09):
+    # per-result text is in "chunk_text", not "text"/"snippet"/"content".
     payload = {
         "answer": "Use parameterized queries via Sequelize replacements.",
         "results": [
             {
                 "content_id": "2fc71565-db91-41a7-8c6d-f15b1abda7ed",
                 "title": "Sequelize v6 Raw Queries",
-                "text": "Use `replacements` for named parameters.",
+                "chunk_text": "Use `replacements` for named parameters.",
             },
             {"content_id": "54036268-5be8-4cee-96e2-97e52ae95ab2", "title": "OWASP Cheat Sheet"},
         ],
@@ -42,6 +44,14 @@ def test_retrieve_returns_tagged_passages() -> None:
     assert any("Use `replacements` for named parameters." in p for p in passages)
     # Result with no text field falls back to title only, not a crash.
     assert any(p == "[54036268-5be8-4cee-96e2-97e52ae95ab2] OWASP Cheat Sheet" for p in passages)
+
+
+def test_falls_back_to_legacy_text_field_names() -> None:
+    # Defensive fallback in case the field name varies across result types.
+    payload = {"results": [{"content_id": "id1", "title": "T", "text": "legacy text field"}]}
+    with patch("subprocess.run", return_value=fake_proc(0, stdout=json.dumps(payload))):
+        passages = SensoGuidanceAdapter().retrieve("query")
+    assert any("legacy text field" in p for p in passages)
 
 
 def test_scopes_search_to_pinned_content_ids() -> None:
