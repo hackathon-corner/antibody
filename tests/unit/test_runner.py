@@ -6,7 +6,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 import pytest
 
-from contracts import Candidate, CheckResult, CheckStatus, DeployRequest, DeployResult, DeployStatus, RunState
+from contracts import (Candidate, CheckResult, CheckStatus, DeployRequest, DeployResult, DeployStatus, Observation,
+                       RunState)
 from server.runner import HostRunner, IllegalTransition, RunStore
 
 NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)
@@ -47,14 +48,29 @@ class Repairer:
         return DeployRequest("r", "h1", digest)
 
 
+def observation(probe_id="search.ordinary"):
+    return Observation("http://lease.example.invalid", "juice-shop", probe_id, "akash:1", 200, "d" * 64, NOW, "pass")
+
+
 class Connector:
-    def __init__(self, status):
+    def __init__(self, status, passed=True, observations=None, observe_error=None):
         self.status = status
         self.calls = 0
+        self.passed = passed
+        self.observations = (observation(), observation("security.injection")) if observations is None else observations
+        self.observe_error = observe_error
 
     def deploy(self, request):
         self.calls += 1
-        return DeployResult("a1", "juice-shop", request.built_image_digest, "rel-1", self.status)
+        return DeployResult("a1", "juice-shop", request.built_image_digest, "akash:1", self.status)
+
+    def observe(self, attempt_id):
+        if self.observe_error:
+            raise self.observe_error
+        return self.passed, self.observations
+
+    def reconcile(self):
+        return []
 
 
 @pytest.fixture
@@ -78,14 +94,26 @@ def test_run_requires_recorded_baseline_digest(runner):
         r.create_run("juice-shop", "5658473c", None, ("routes/search.ts",), ("rule",), "suite")
 
 
-def test_accepted_deploy_reaches_verifying_not_completed(runner):
+def test_accepted_deploy_completes_only_after_external_probes_pass(runner):
     r, store, sink = runner
     run = new_run(r)
     final = r.execute(run.run_id, "/src", Scanner(), Repairer(), lambda c: "sha256:cand", Connector(DeployStatus.ACCEPTED))
-    assert final.state == RunState.VERIFYING
+    assert final.state == RunState.COMPLETED
     assert states(sink, run.run_id) == [
-        "created", "scanning", "proposing", "validating", "ready_to_deploy", "deploying", "verifying"]
-    assert r.complete(run.run_id, True, "external probes passed").state == RunState.COMPLETED
+        "created", "scanning", "proposing", "validating", "ready_to_deploy", "deploying", "verifying", "completed"]
+    probes = [e for e in sink.events if e.event_type == "probe.observed"]
+    assert [e.release_ref for e in probes] == ["akash:1", "akash:1"] and all(e.candidate_hash == "h1" for e in probes)
+
+
+@pytest.mark.parametrize("connector, expected", [
+    (Connector(DeployStatus.ACCEPTED, passed=False), RunState.FAILED),
+    (Connector(DeployStatus.ACCEPTED, observe_error=TimeoutError("lease not ready")), RunState.UNRESOLVED),
+    (Connector(DeployStatus.ACCEPTED, observations=()), RunState.UNRESOLVED),
+])
+def test_probe_failures_never_complete(runner, connector, expected):
+    r, _, _ = runner
+    run = new_run(r)
+    assert r.execute(run.run_id, "/src", Scanner(), Repairer(), lambda c: "d", connector).state == expected
 
 
 def test_missing_connector_is_unresolved_not_success(runner):

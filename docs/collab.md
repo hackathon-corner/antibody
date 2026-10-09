@@ -9,12 +9,31 @@ How to use this file:
 
 ## Open
 
+### Q14 (C → A, B): Which machine runs the real end-to-end run for the video?
+`scripts/run_repair.py` needs, on one machine:
+- Docker producing **linux/amd64** images (Akash). C's Mac is arm64 with no Docker.
+- `guild` signed in, plus the agent checkout `guild-agents/antibody-repair-agent`, which is git-ignored and only on A's machine.
+- `semgrep` 1.180.0 and `senso` signed in.
+- `docker login ghcr.io` with write:packages.
+- `.env` with `CLICKHOUSE_*` (app user), `AKASH_API_KEY`, `GUILD_WORKSPACE`, `GUILD_AGENT_DIR`.
+
+B's machine has Docker (amd64?). Proposal: run it on B's machine, after A shares the agent directory (or B runs `guild agent clone` into the workspace) and C hands over the Akash key out of band (never in the repo or chat). Run the bad candidate first (`--supplied-patch tests/fixtures/juice-shop/candidates/mutant-where-1-0.patch --origin operator-supplied-bad-candidate`), then the Guild run. Both show up at the public evidence dashboard. A, B: agree, or a different machine?
+
+**Also for A, found while smoke-testing:** `SemgrepAdapter` treats a scan of 0 files as "no finding". Scanning `runtime/source` as a directory scanned 0 files, because Semgrep skips git-ignored paths, and the adapter reported PASS. `run_repair.py` now scans the allowed file directly. Suggest the adapter raise `SemgrepScanError` when `paths.scanned` is empty, so a silent false negative can't happen.
+
 ### Q13 (B → A, C): Wiring the B5 deploy connector and probes into the runner
 B5 is in `main` (`588b1ed`, `d44332e`), unit-tested and checked against local containers, not yet run on real Akash. Proposed wiring:
 1. **Deploy (no interface change).** C passes `adapters.akash_deploy.load_connector()` as `connector` to `HostRunner.execute`. It implements `DeployConnector.deploy(DeployRequest) -> DeployResult` as-is. It re-reads the worker's record for `candidate_hash` and refuses unless that exact `built_image_digest` passed the current suite. A's `request_deploy` hash already matches the worker's (both sha256 of the UTF-8 patch). On ACCEPTED, `DeployResult.image_digest` is the registry reference (`ghcr.io/hackathon-corner/antibody-target@sha256:…`), not the local image ID, and `release_ref` is `akash:<dseq>`.
 2. **Verify (needs a change in C's runner).** Nothing in `HostRunner` calls probes yet after `verifying`. Proposal: when the deploy is ACCEPTED, the runner calls `connector.observe(result.attempt_id)` (candidate mode). It returns `(passed, observations)`, one redacted `Observation` per probe. The runner emits each as an event and calls `complete(run_id, passed, reason)`. That adds `observe()` to the `DeployConnector` protocol, or a separate `Verifier` argument if you'd rather keep the protocol to `deploy` only. C, which do you prefer?
 3. **Restart.** `HostRunner.reconcile_after_restart()` marks open claims unresolved and never redeploys. The connector has its own `reconcile()`, which asks Akash what exists. Suggest the runner calls `connector.reconcile()` first and records any ACCEPTED/FAILED result it returns before marking the rest unresolved.
 4. **Credentials (host only, never the worker).** `AKASH_API_KEY` from C's Console account, and a `docker login ghcr.io` with `write:packages` on the machine running the host, because the connector pushes the verified image as `cand-<hash12>`. Pull is anonymous now that the packages are public. C, can you create an API key for the host, or would you rather run the first deploy yourself?
+
+**Answer (C, 2026-10-09):** Wired, using your proposal as-is.
+1. `run_repair.py` passes `load_connector()` as the runner's connector.
+2. `DeployConnector` now includes `observe()` and `reconcile()`. On ACCEPTED, the runner calls `observe(attempt_id)` and emits one `probe.observed` event per `Observation`. It completes only when the probes pass. A probe failure moves the run to `failed`; a probe crash or no observations moves it to `unresolved`.
+3. `reconcile_after_restart(connector)` calls `connector.reconcile()` first, records each result as a `deploy.result` event, then marks the remaining claims unresolved. It never redeploys.
+4. Entry point: `scripts/run_repair.py --source runtime/source [--supplied-patch <file> --origin <true label>] [--no-deploy]`. It chains the pinned rule, Senso, Guild (or a supplied patch), the validator, your worker, the upstream-answer match (`answer.match` event), your connector, the probes, and ClickHouse. Smoke-tested on C's Mac (no Docker) with `mutant-where-1-0.patch`: scan finding, 2 candidates proposed and checked, run `failed` after MaxAttemptsExceeded, all recorded (run `run_5fa1492b99fe431b`).
+5. The Akash API key: C will create it in the Console. See Q14 for where it runs.
 
 First real candidate available: the operator-supplied reference repair (`tests/fixtures/juice-shop/candidates/repair-parameterized.patch`, origin `operator-supplied-reference-repair`, **not model output**). It passes all 5 checks on suite `be833ec4…` (image `sha256:4be6e636…`). A: that fixture must never be given to the agent as context.
 

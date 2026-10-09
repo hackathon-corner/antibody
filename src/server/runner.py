@@ -24,7 +24,8 @@ from pathlib import Path
 from typing import Protocol
 
 from adapters.clickhouse_events import stable_event_id
-from contracts import Candidate, CheckResult, CheckStatus, DeployRequest, DeployResult, DeployStatus, Event, Run, RunState
+from contracts import (Candidate, CheckResult, CheckStatus, DeployRequest, DeployResult, DeployStatus, Event,
+                       Observation, Run, RunState)
 
 EMITTER = "host-runner"
 
@@ -63,9 +64,15 @@ class Repairer(Protocol):
 
 
 class DeployConnector(Protocol):
-    """B5: deploy one validated image digest; no arbitrary host, URL, or command."""
+    """B5: deploy one validated image digest; no arbitrary host, URL, or command.
+
+    observe() runs the external probes against an accepted attempt (candidate mode) and returns
+    (passed, observations); reconcile() resolves interrupted attempts against the host. See Q13.
+    """
 
     def deploy(self, request: DeployRequest) -> DeployResult: ...
+    def observe(self, attempt_id: str) -> tuple[bool, tuple[Observation, ...]]: ...
+    def reconcile(self) -> list[DeployResult]: ...
 
 
 class RunStore:
@@ -225,16 +232,46 @@ class HostRunner:
                     candidate_hash=request.candidate_hash, release_ref=result.release_ref,
                     detail=json.dumps({"image": result.image_digest, "error": result.error}))
         if result.status == DeployStatus.ACCEPTED:
-            # Acceptance is not proof of serving; B5's external probes move the run on from here.
+            # Acceptance is not proof of serving; only the external probes can complete the run.
             self._move(run_id, S.VERIFYING, "deploy accepted; awaiting external observations")
+            return self._verify(run_id, request, result, connector)
         elif result.status == DeployStatus.FAILED:
             self._move(run_id, S.FAILED, f"deploy failed: {result.error}")
         else:
             self._move(run_id, S.UNRESOLVED, "deploy outcome unknown")
         return self._store.get(run_id)
 
-    def reconcile_after_restart(self) -> list[str]:
-        """Runs with a deploy claim but no recorded result are marked unresolved, never redeployed."""
+    def _verify(self, run_id: str, request: DeployRequest, result: DeployResult,
+                connector: DeployConnector) -> Run:
+        try:
+            passed, observations = connector.observe(result.attempt_id)
+        except Exception as exc:
+            self._move(run_id, S.UNRESOLVED, f"external probes could not run: {type(exc).__name__}: {exc}"[:500])
+            return self._store.get(run_id)
+        for o in observations:
+            self._event(run_id, "probe.observed", f"{result.attempt_id}:{o.probe_id}", str(o.status_code),
+                        candidate_hash=request.candidate_hash, release_ref=o.release_ref, at=o.observed_at,
+                        detail=json.dumps({"probe": o.probe_id, "url": o.url, "body_sha256": o.body_digest,
+                                           "result": o.redacted_result})[:2000])
+        if not observations:
+            self._move(run_id, S.UNRESOLVED, "external probes returned no observations")
+            return self._store.get(run_id)
+        verdict = "external probes passed" if passed else "external probes failed"
+        return self.complete(run_id, passed, f"{verdict} ({len(observations)} observations, {result.release_ref})")
+
+    def reconcile_after_restart(self, connector: DeployConnector | None = None) -> list[str]:
+        """Ask the connector what actually exists first, then mark remaining open claims unresolved.
+
+        Never redeploys. A reconciled ACCEPTED/FAILED result is recorded as a deploy.result event;
+        the run itself still needs an operator decision, so it is marked unresolved with that outcome.
+        """
+        if connector is not None:
+            for r in connector.reconcile():
+                self._sink.emit(Event(
+                    event_id=stable_event_id("reconcile", "deploy.result", EMITTER, f"{r.attempt_id}:{r.status.value}"),
+                    run_id="reconcile", candidate_hash=None, release_ref=r.release_ref, event_type="deploy.result",
+                    emitter=EMITTER, observed_at=datetime.now(timezone.utc), outcome=r.status.value,
+                    detail=json.dumps({"attempt": r.attempt_id, "image": r.image_digest, "error": r.error})))
         marked = []
         for run_id in self._store.open_claims():
             if self._store.get(run_id).state not in TERMINAL:
