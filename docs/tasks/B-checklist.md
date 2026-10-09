@@ -11,7 +11,7 @@ Stack: Python 3.11+ (stdlib first) for B's Python code, Docker for target builds
 | B1 | Pins done; Docker now works locally; baseline image not yet built, digest not recorded | Nothing. Next action. |
 | B2 | Modified source builds and pushes to GHCR in CI; not public | Public host choice and pull access (Q6) |
 | B3 | Suite and expectations written and verified against the upstream release package | Re-observe on the source-built baseline; record the suite hash |
-| B4 | Not started | Nothing (B3 is usable). **A5 waits on this, and A's Guild blocker is resolved, so real candidates are close.** |
+| B4 | Worker written and verified end-to-end on a supplied repair (`src/adapters/check_worker.py`) | A wires `run_checks`; negative control through the worker still to run |
 | B5 | Not started | B2, B4. A6 waits on this. |
 | B6 | Not started | B4 (A4 is done) |
 | B7 | Stretch | B5 |
@@ -44,10 +44,11 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 - [x] Dockerfile written: `infra/containers/juice-shop/Dockerfile`
 - [x] Target script written: `scripts/target.py` (source / build / run / smoke / stop)
 - [x] Host-owned build fix for floating dependencies: `infra/containers/build-fixes/frontend-sbom.patch` ([run 37982608827](https://github.com/hackathon-corner/antibody/actions/runs/37982608827)); applied by both CI and the local Dockerfile (`c29b691`)
-- [ ] `python scripts/target.py source --out runtime/source` runs; `routes/search.ts` hash matches the one in `config/targets/README.md`
-- [ ] Baseline image built from source: `python scripts/target.py build`
-- [ ] `baseline_image_digest` recorded in `config/targets/juice-shop.json`
-- [ ] Source-built baseline runs and `smoke` returns products for `q=apple`. (Observed so far only on the upstream release package, darwin/arm64, by C.)
+- [x] `python scripts/target.py source --out runtime/source` runs; `routes/search.ts` hash matches the one in `config/targets/README.md` (`de09bfc4…`, 2026-10-09)
+- [x] Baseline image built from source: `python scripts/target.py build` (2026-10-09, B workstation; needed the output-check gate and no `# syntax` fetch, see `infra/containers/README.md`)
+- [x] `baseline_image_digest` recorded: local image ID `sha256:e106dde7…` (registry digest comes in B2)
+- [x] Source-built baseline runs and `smoke` returns products for `q=apple` (ids 1, 24, 47; local, 2026-10-09)
+- [x] Injection reproduced on the source-built baseline: `q=xyz` returns 0 products, `q=xyz')) OR 1=1--` returns 56
 - [ ] Confirmed only Juice Shop's bundled fictional seed data is in use
 - [x] A told the pin is ready (`18348ca`; acknowledged in [plan-for-A.md](../plan-for-A.md))
 - [x] A told about upstream answer files `data/static/codefixes/unionSqlInjectionChallenge_*` (collab Q4; A excludes them from agent context, C's `src/server/answer_match.py` flags exact matches)
@@ -83,11 +84,14 @@ Suite written by C in the spike; B owns it from here.
 
 ## B4. Isolated candidate verification worker
 
-- [ ] Independent change-scope check: only `routes/search.ts`, rejected before build (reuse or mirror `src/agent/validator.py`)
-- [ ] Builds the candidate with no secrets and restricted network, with bounded CPU, memory and time
-- [ ] Runs the B3 suite in candidate mode; emits `CheckResult` tied to candidate hash, image digest and suite hash
-- [ ] An error or unknown result blocks release (suite exit code 2 = error)
-- [ ] Plug into the runner's `build_candidate` and A's `run_checks`
+- [x] Independent change-scope check: only `routes/search.ts`, rejected before build; also catches deletes, renames and binary patches (`src/adapters/check_worker.py`, unit-tested)
+- [x] Builds the candidate with an allowlisted environment (no secrets), runs it on a per-check `--internal` Docker network with CPU, memory, pid limits and dropped capabilities; build and suite have timeouts. (The build itself needs network to fetch the pinned source and npm packages.)
+- [x] Runs the B3 suite in candidate mode (suite mounted read-only from the host checkout); emits `CheckResult` tied to candidate hash, image ID and suite hash. Observed 2026-10-09 on an operator-supplied parameterized-query repair (not model output): all 5 required checks pass, image `sha256:02a8df7b…`, suite `2d7e0519…` (Windows CRLF checkout; see note below)
+- [x] An error or unknown result blocks release: timeouts, unparseable output, suite-hash or mode mismatch, exit/overall disagreement and a target that never starts are `ERROR`; `build_candidate` refuses anything without a passing record (unit-tested)
+- [x] Entry points match the runner's `build_candidate(Candidate) -> str` and A's `run_checks(Candidate) -> tuple[CheckResult, ...]` (`load_worker()`)
+- [ ] A wires `load_worker().run_checks` into `RepairAgent`, and C passes `build_candidate` to `HostRunner.execute`
+- [ ] Negative control through the worker: the `WHERE 1=0` mutant is rejected
+- [ ] Suite hash is line-ending dependent: Windows checkouts get CRLF, CI gets LF, so the same suite hashes differently. Pin `tests/e2e/**` and `tests/fixtures/**` to `eol=lf` in `.gitattributes`
 
 ## B5. Fixed deployment connector and external verification
 
