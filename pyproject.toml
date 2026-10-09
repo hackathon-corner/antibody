@@ -3,10 +3,10 @@ name = "antibody"
 version = "0.1.0"
 description = "Autonomous repair agent for a pinned Juice Shop SQL-injection defect."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["clickhouse-connect>=1.10,<2", "fastapi>=0.143,<1", "uvicorn[standard]>=0.54,<1"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "httpx"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
