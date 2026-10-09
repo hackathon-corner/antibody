@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Builds the pinned Juice Shop target, optionally with one candidate patch applied.
 # Adapted from the upstream Dockerfile at the pinned commit (MIT, OWASP Juice Shop).
 # Build via scripts/target.py, which passes every pin from config/targets/juice-shop.json.
@@ -29,8 +28,9 @@ COPY --from=source /src /juice-shop
 WORKDIR /juice-shop
 RUN npm install -g typescript@^6.0.3
 RUN npm install --omit=dev
-# Upstream postinstall swallows server compile errors; a candidate that does not compile must fail here.
-RUN npm run build:server
+# Upstream postinstall tolerates type errors (dev @types are omitted) but still emits JS.
+# Fail here if the server or the repair path produced no output.
+RUN test -f build/app.js && test -f build/routes/search.js
 RUN npm dedupe --omit=dev
 RUN rm -rf frontend/node_modules frontend/.angular frontend/src/assets
 RUN mkdir logs

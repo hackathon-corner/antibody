@@ -4,7 +4,7 @@ Owner: B.
 
 Isolated candidate build/test infrastructure and pinned target image definitions.
 
-- `juice-shop/Dockerfile`: fetches the pinned commit inside the build (verifying the SHA), applies the host-owned `build-fixes/*.patch`, then an optional `candidate.patch`, builds, and produces a distroless runtime image. Adapted from upstream's Dockerfile with two deviations: the server compile (`npm run build:server`) fails the build instead of being swallowed by upstream's `postinstall`, and the image SBOM step is omitted. Run it through `scripts/target.py build`, which supplies all pins from `config/targets/juice-shop.json`.
+- `juice-shop/Dockerfile`: fetches the pinned commit inside the build (verifying the SHA), applies the host-owned `build-fixes/*.patch`, then an optional `candidate.patch`, builds, and produces a distroless runtime image. Adapted from upstream's Dockerfile with two deviations: the build fails if the compiled server or `build/routes/search.js` is missing (upstream tolerates type errors: with `--omit=dev` the unmodified baseline reports many), and the image SBOM step is omitted. Behavioral breakage is caught by the B3 checks, not the compiler. Run it through `scripts/target.py build`, which supplies all pins from `config/targets/juice-shop.json`.
 - `evidence-api/Dockerfile` (owner: C): the evidence API and dashboard in one image. CI: `.github/workflows/build-evidence-api.yml`.
 - `patches/`: build inputs for `.github/workflows/build-target.yml`. `spike-marker.patch` changes only the displayed app name to prove a modified-source build is what is served.
 
