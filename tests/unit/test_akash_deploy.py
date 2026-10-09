@@ -142,10 +142,18 @@ def test_unverified_requests_are_refused_before_anything_happens(tmp_path, h, im
     assert reg.pushed == [] and api.sdls == []
 
 
-def test_missing_pull_credentials_fail_before_akash(tmp_path):
+def test_public_package_deploys_without_credentials(tmp_path):
     record(tmp_path)
     api = FakeAkash()
     result = connector(tmp_path, api, env={"AKASH_API_KEY": "k"}).deploy(req())
+    assert result.status == DeployStatus.ACCEPTED
+    assert "credentials:" not in api.sdls[0]
+
+
+def test_half_set_pull_credentials_fail_before_akash(tmp_path):
+    record(tmp_path)
+    api = FakeAkash()
+    result = connector(tmp_path, api, env={"AKASH_API_KEY": "k", "GHCR_PULL_USER": "u"}).deploy(req())
     assert result.status == DeployStatus.FAILED and "GHCR_PULL_TOKEN" in result.error
     assert api.sdls == []
 
@@ -215,3 +223,26 @@ def test_reconcile_create_without_dseq_stays_unknown(tmp_path):
     c.deploy(req())
     [r] = c.reconcile()
     assert r.status == DeployStatus.UNKNOWN and "Akash Console" in r.error
+
+
+def test_observe_probes_the_accepted_endpoint_with_the_lease_reference(tmp_path):
+    record(tmp_path)
+    c = connector(tmp_path)
+    result = c.deploy(req())
+    seen = []
+
+    def fetch(url):
+        seen.append(url)
+        return 503, b"unavailable"
+
+    ok, obs = c.observe(result.attempt_id, fetch=fetch)
+    assert not ok and obs and all(o.release_ref == "akash:12345" for o in obs)
+    assert all(u.startswith("http://abc.ingress.example/") for u in seen)
+
+
+def test_observe_refuses_an_attempt_without_an_accepted_endpoint(tmp_path):
+    record(tmp_path)
+    c = connector(tmp_path, FakeAkash(bids=[]))
+    result = c.deploy(req())
+    with pytest.raises(RuntimeError, match="no accepted public endpoint"):
+        c.observe(result.attempt_id)

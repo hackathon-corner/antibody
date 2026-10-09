@@ -8,8 +8,9 @@ passed the current suite.
 Then it:
 1. pushes that local image to the fixed registry repo as ``cand-<hash12>`` and deploys it by
    the registry digest the push reports (never by tag);
-2. renders the fixed SDL template for that digest, adding GHCR pull credentials from the
-   environment (``GHCR_PULL_USER``/``GHCR_PULL_TOKEN``; the token should be read:packages only);
+2. renders the fixed SDL template for that digest. The package is public; if it is ever made
+   private again, set ``GHCR_PULL_USER``/``GHCR_PULL_TOKEN`` (read:packages only) and they are
+   added to the SDL;
 3. creates the deployment through the Akash Console API (``AKASH_API_KEY``), leases the
    cheapest bid, and waits for the service to report a URI.
 
@@ -38,9 +39,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Protocol
 
-from contracts import DeployRequest, DeployResult, DeployStatus
+from contracts import DeployRequest, DeployResult, DeployStatus, Observation
 
 from .check_worker import ROOT, suite_hash
+from .public_probe import Fetch, http_get, probe
 
 CONSOLE_API = "https://console-api.akash.network"
 _HASH = re.compile(r"^[0-9a-f]{64}$")
@@ -257,6 +259,19 @@ class AkashDeployConnector:
             return None
         return a["uri"] if a["uri"].startswith("http") else f"http://{a['uri']}"
 
+    def observe(self, attempt_id: str, *, mode: str = "candidate", expect_name: str | None = None,
+                fetch: Fetch = http_get) -> tuple[bool, tuple[Observation, ...]]:
+        """Run the external probes against an accepted attempt's public URL (B5).
+
+        The verdict goes to HostRunner.complete(); a deploy is not verified until this passes.
+        """
+        url = self.endpoint(attempt_id)
+        if url is None:
+            raise RuntimeError(f"attempt {attempt_id} has no accepted public endpoint to probe")
+        a = self._store.get(attempt_id)
+        return probe(url, mode=mode, target_id=self._target_id, release_ref=f"akash:{a['dseq']}",
+                     expect_name=expect_name, fetch=fetch)
+
     def close(self, attempt_id: str) -> None:
         """Close the attempt's Akash deployment (end of event, or recovery). Raises on failure."""
         a = self._store.get(attempt_id)
@@ -383,8 +398,10 @@ class AkashDeployConnector:
         if f'image: "{ref}"' not in sdl:
             raise RuntimeError("SDL template has no image placeholder")
         user, token = self._env.get("GHCR_PULL_USER"), self._env.get("GHCR_PULL_TOKEN")
-        if not (user and token):
-            raise RuntimeError("GHCR_PULL_USER and GHCR_PULL_TOKEN must be set; the registry package is private")
+        if bool(user) != bool(token):
+            raise RuntimeError("set both GHCR_PULL_USER and GHCR_PULL_TOKEN, or neither")
+        if not user:  # public package: the provider pulls anonymously
+            return sdl
         creds = (f'\n    credentials:\n      host: ghcr.io\n      username: {json.dumps(user)}\n'
                  f'      password: {json.dumps(token)}')
         return sdl.replace(f'image: "{ref}"', f'image: "{ref}"{creds}', 1)
