@@ -2,9 +2,13 @@
 
 Owner: A. Source of task IDs: [PRD section 8](PRD.md#8-three-person-task-board). This file tracks A's actual progress; update checkboxes as work lands, don't let it drift from `git log`.
 
-Blocking dependency: **B1** (pinned Juice Shop commit + baseline image digest) blocks real Semgrep scanning and real candidate proposals. Everything markable without it is marked `[x]`; everything blocked by it is flagged `⏳ BLOCKED ON B1`.
+Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice-shop.json`, `docs/decisions/0001-target-pin.md`, `docs/tasks/B-checklist.md`). Commit pinned: Juice Shop `v20.2.0` / `5658473cf8814459bf89000ce373b20ed0b4eb37`, allowed path `routes/search.ts`. `baseline_image_digest` is still `null` pending B's build step. Everything below that only needed the pin (not the digest) is now unblocked.
 
 **🛑 Current hard blocker (2026-10-09):** Guild agent sessions hang indefinitely with zero server-side events — not a config issue on our end (ruled out credentials, tool complexity, client timeouts). Escalated to Guild's team with session IDs. See A1 below for full evidence. This blocks A3 end-to-end and any real candidate proposal; A4/A5/A6 logic and tests proceed independently using fakes.
+
+**Note:** `setup/pin-scan-baseline-spike` (B/C's earlier branch) is now stale relative to `main` — it has the Semgrep registry-rule pin (`config/semgrep/rules.lock.json`, `scripts/semgrep-scan.sh`) and B3's e2e check suite (`tests/e2e/juice-shop-checks.mjs`) that haven't landed on `main` yet. B is working on reconciling it. The Semgrep rule file is the one thing A still needs from it.
+
+**Contract change requests from B** (`docs/tasks/B-checklist.md`, "Contract review with A"): `CheckResult` needs `image_digest` and `suite_hash` fields (PRD §5 requires binding results to them); `Observation.release_ref` should be `str | None`, not required `str` (PRD §6 says "where observed", implying it can be absent). Not yet applied to `src/contracts/models.py` — pending confirmation via `docs/collab.md`.
 
 ## A2 — Shared contracts (done first, unblocks everyone)
 
@@ -21,13 +25,14 @@ Blocking dependency: **B1** (pinned Juice Shop commit + baseline image digest) b
 - [x] Reject on stale `base_commit`
 - [x] Reject on any changed path outside `allowed_paths` (regex-parsed from real diff text, not declared metadata)
 - [x] Smoke-tested: forbidden-path patch rejected, in-scope patch accepted and hashed
-- [ ] Unit tests in `tests/unit/` covering: empty patch, multi-file patch (one allowed + one forbidden), malformed diff text
+- [x] Unit tests in `tests/unit/test_validator.py`: empty patch, multi-file patch (allowed/forbidden mix), malformed diff text, stale commit, hash determinism (9 cases, all passing)
 - [ ] Confirm diff format assumption (`+++ b/<path>` unified diff) matches what Guild will actually emit — revisit if Guild returns full-file replacement instead of a diff
 
 ## A1 — Prove Guild tool execution and Semgrep baseline detection
 
 - [x] `SemgrepAdapter`: real CLI wrapper, JSON parse, maps rule matches → `CheckResult` — `src/adapters/semgrep.py`
-- [ ] ⏳ BLOCKED ON B1/merge of `setup/pin-scan-baseline-spike` — point `SemgrepAdapter` at B's pinned `routes/search.ts`. Note: that branch uses a registry rule ID (`javascript.sequelize.security.audit...`, fetched by SHA-256 at scan time), not a local `--config <path>` rule file like `SemgrepAdapter` currently assumes — adapter needs a small update after merge.
+- [x] B1 merged to `main` — pinned commit/path available: `routes/search.ts` at `5658473cf8814459bf89000ce373b20ed0b4eb37`
+- [ ] ⏳ BLOCKED ON `setup/pin-scan-baseline-spike` reconciliation — the pinned Semgrep registry rule (`config/semgrep/rules.lock.json`) only exists on that stale branch. Note: it uses a registry rule ID (`javascript.sequelize.security.audit...`, fetched by SHA-256 at scan time), not a local `--config <path>` rule file like `SemgrepAdapter` currently assumes — adapter needs a small update once this lands.
 - [ ] Capture one real baseline JSON finding (file, line, rule ID) as evidence artifact
 - [x] Guild account: workspace created (`antibody-dev`, `01a1224a-2310-3bb9-0000-99807e6c2ff8`), CLI installed and authenticated as `g3ram`
 - [x] Guild: agent created (`antibody-repair-agent`, `01a12248-138c-726e-0000-1fcb7df24304`), one zero-dependency `ping` tool connected (no network/credentials, to isolate the test from tool-side failures)
@@ -74,8 +79,9 @@ Blocking dependency: **B1** (pinned Juice Shop commit + baseline image digest) b
 
 ## Immediate next actions (in order)
 
-1. Ping B for B1 ETA — unblocks A1's real Semgrep scan and the rest of the chain.
-2. Start Guild account/auth now (no B1 dependency) — A1 Guild checkpoints.
-3. Write the A4 unit tests (no external dependency, pure function, fast win).
-4. Once B1 lands: run Semgrep against the real pinned file, capture the finding artifact.
-5. Once Guild session works: wire `GuildPatchAdapter`, replace the fake adapter in a real end-to-end run.
+1. ~~Ping B for B1 ETA~~ — done, B1 merged (`18348ca`).
+2. ~~Start Guild account/auth~~ — done; blocked on Guild's response to the hung-session escalation (see above).
+3. ~~Write the A4 unit tests~~ — done, 9 cases passing.
+4. Resolve the two contract change requests from B (`CheckResult.image_digest`/`suite_hash`, `Observation.release_ref` optionality) via `docs/collab.md`, then apply to `src/contracts/models.py`.
+5. Once `setup/pin-scan-baseline-spike` reconciles: point `SemgrepAdapter` at the real pinned Semgrep rule, capture the finding artifact.
+6. Once Guild session works: wire `GuildPatchAdapter`, replace the fake adapter in a real end-to-end run.
