@@ -18,6 +18,16 @@ The required sponsor core is Guild AI, Semgrep, and ClickHouse. Additional integ
 
 Before implementation, resolve the new account's vendor access, pin the target revision, confirm event rules, and agree contracts. Do not reuse credentials from another project. Keep secrets in ignored local configuration and server-side vendor stores.
 
+## Tech stack
+
+- **Backend / agent** (A's `src/agent/`, `src/adapters/`, `src/contracts/`): Python 3.11+, plain dataclasses for contracts, no framework imposed yet. Packaged via `pyproject.toml`; install with `pip install -e .`.
+- **Target under repair** (B's `tests/fixtures/juice-shop/`): OWASP Juice Shop — Node.js/TypeScript, its own Dockerfile/build (per PRD). Treat it as an external pinned revision, not part of this repo's own stack.
+- **Host API / dashboard** (C's `src/server/`, `src/web/`): backend owner's choice for `src/server/` (align with A's Python if reused for the host API — confirm with C); `src/web/` is **React + TypeScript**.
+- **Evidence store**: ClickHouse (C), queried from the host API, not written to directly by the agent.
+- **Scanner**: Semgrep CLI (local, no account needed) — already wired in `src/adapters/semgrep.py`.
+- **Agent runtime**: Guild AI (pending A1 account/session setup).
+- Cross-boundary contract: the Python dataclasses in `src/contracts/models.py` are the source of truth for shapes; anything crossing into `src/web` goes over an HTTP API as JSON, not as a shared import.
+
 ## Handoff: B and C pick up here
 
 A has drafted the shared contracts in [`src/contracts/models.py`](src/contracts/models.py): `Run`, `Candidate`, `CheckResult`, `DeployRequest`, `DeployResult`, `Observation`, `Event`, `Report`, plus `RunState`/`CheckStatus`/`DeployStatus` enums. These are Python dataclasses (backend stack; `src/web` stays React/TS and consumes them over the API, not by import).
