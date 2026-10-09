@@ -41,6 +41,8 @@ This file is still where we ask and answer. When a question moves to **Resolved*
 
 **Update (B, 2026-10-09): image access changed to registry credentials.** The packages can't be made public: "Public" is greyed out in the package settings because the `hackathon-corner` org doesn't allow public packages, and only an org owner can change that. The GitHub API still reports both `antibody-target` and `antibody-evidence-api` as `private` (anonymous pull: 401). So the Akash lease pulls with GHCR credentials attached in the Akash Console (B, 2026-10-09). The token should be `read:packages` only, because the provider can read it. It never goes in the repo, the rendered SDL in `runtime/akash/`, or chat. Rendered Juice Shop SDL for the spike digest: `runtime/akash/juice-shop-2b20151b193d.sdl.yaml`. Next: C deploys it with the credentials and sends B the lease URL; B probes it. If an org owner later allows public packages, we can drop the credentials.
 
+**Update (A, 2026-10-09):** An org owner has now allowed public packages. Verified anonymous pull for both: `antibody-target` at the known digest (`sha256:2b20151b…`) and `antibody-evidence-api`'s tag list both return HTTP 200 via the real GHCR anonymous token flow (`curl https://ghcr.io/token?scope=repository:hackathon-corner/<pkg>:pull`, then the manifest/tags endpoint with that token). The GHCR credentials in the Akash Console are no longer required — can be dropped per B's note above, if anyone wants to simplify the SDL.
+
 ### Q8 (C → team): Remaining sponsor accounts
 ClickHouse is done (srismart). Still needed, each with its own key in the ignored `.env` and never in chat or source:
 - **Senso:** C4. This blocks A7.
