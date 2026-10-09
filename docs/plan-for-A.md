@@ -4,6 +4,8 @@ Owner: A. Source of task IDs: [PRD section 8](PRD.md#8-three-person-task-board).
 
 Blocking dependency: **B1** (pinned Juice Shop commit + baseline image digest) blocks real Semgrep scanning and real candidate proposals. Everything markable without it is marked `[x]`; everything blocked by it is flagged `⏳ BLOCKED ON B1`.
 
+**🛑 Current hard blocker (2026-10-09):** Guild agent sessions hang indefinitely with zero server-side events — not a config issue on our end (ruled out credentials, tool complexity, client timeouts). Escalated to Guild's team with session IDs. See A1 below for full evidence. This blocks A3 end-to-end and any real candidate proposal; A4/A5/A6 logic and tests proceed independently using fakes.
+
 ## A2 — Shared contracts (done first, unblocks everyone)
 
 - [x] Draft `Run`, `Candidate`, `CheckResult`, `DeployRequest`, `DeployResult`, `Observation`, `Event`, `Report` dataclasses — `src/contracts/models.py`
@@ -25,12 +27,14 @@ Blocking dependency: **B1** (pinned Juice Shop commit + baseline image digest) b
 ## A1 — Prove Guild tool execution and Semgrep baseline detection
 
 - [x] `SemgrepAdapter`: real CLI wrapper, JSON parse, maps rule matches → `CheckResult` — `src/adapters/semgrep.py`
-- [ ] ⏳ BLOCKED ON B1 — point `SemgrepAdapter` at B's pinned `routes/search.ts`, confirm a stock rule matches the SQLi, or author a narrow custom rule in `config/semgrep/`
+- [ ] ⏳ BLOCKED ON B1/merge of `setup/pin-scan-baseline-spike` — point `SemgrepAdapter` at B's pinned `routes/search.ts`. Note: that branch uses a registry rule ID (`javascript.sequelize.security.audit...`, fetched by SHA-256 at scan time), not a local `--config <path>` rule file like `SemgrepAdapter` currently assumes — adapter needs a small update after merge.
 - [ ] Capture one real baseline JSON finding (file, line, rule ID) as evidence artifact
-- [ ] Guild account: create workspace, authenticate CLI
-- [ ] Guild: create an agent, connect one narrowly-scoped tool
-- [ ] Guild: confirm a real session invokes a harmless tool and returns a real result (not a mock) — record session reference
-- [ ] Confirm Guild agent has outbound access to call our adapters (resolve at first setup checkpoint; escalate to sponsor reps if blocked)
+- [x] Guild account: workspace created (`antibody-dev`, `01a1224a-2310-3bb9-0000-99807e6c2ff8`), CLI installed and authenticated as `g3ram`
+- [x] Guild: agent created (`antibody-repair-agent`, `01a12248-138c-726e-0000-1fcb7df24304`), one zero-dependency `ping` tool connected (no network/credentials, to isolate the test from tool-side failures)
+- [ ] 🛑 BLOCKED — Guild: confirm a real session invokes the tool and returns a real result. **Every attempt hangs indefinitely.** `guild agent chat` and `guild agent test` both create a real server-side session and print "Processing input 1/1..." but never return; `guild session events <id>` / `guild session tasks <id>` show **zero events, zero tasks** for every attempt — the turn never starts server-side. Tried: disabling workspace "restrict account credentials" toggle (no change), confirmed managed LLM tier is active with 50M token balance (not a billing issue), confirmed via `guild agent test --timeout 60` that even the CLI's own internal timeout doesn't fire.
+  - Hung session IDs for reference: `01a1224a-3674-f268-0000-828bd84b3467`, `01a1224b-3d75-f268-0000-a7d6eaed013a`, `01a12258-df18-f268-0000-f2d21e6b6128`, `01a12259-ede6-f268-0000-92eb28018fbe`, `01a1225a-e05d-f268-0000-402df81a76a8` (ran via `guild agent test`, didn't honor its own `--timeout 60`)
+  - Escalated to Guild's sponsor/support team with the above evidence (2026-10-09, afternoon). Awaiting response.
+- [ ] Confirm Guild agent has outbound access to call our adapters — cannot test until the above unblocks
 
 ## A3 — Scanner and patch-proposal tools
 
