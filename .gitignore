@@ -19,3 +19,4 @@ __pycache__/
 .claude/scheduled_tasks.lock
 guild-agents/*/
 CLAUDE.md
+.venv/

@@ -1,0 +1,13 @@
+diff --git a/config/default.yml b/config/default.yml
+index 18fc08e..e0ba775 100644
+--- a/config/default.yml
++++ b/config/default.yml
+@@ -4,7 +4,7 @@ server:
+   baseUrl: 'http://localhost:3000' # used for CSAF, e.g. https://example.com
+ application:
+   domain: juice-sh.op # for pre-loaded email users
+-  name: 'OWASP Juice Shop'
++  name: 'OWASP Juice Shop (Antibody build spike)'
+   logo: JuiceShop_Logo.png
+   favicon: favicon_js.ico
+   theme: bluegrey-lightgreen # Options: bluegrey-lightgreen blue-lightblue deeppurple-amber indigo-pink pink-bluegrey purple-green deeporange-indigo lime-green neon-fire

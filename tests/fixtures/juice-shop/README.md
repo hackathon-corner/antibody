@@ -10,4 +10,4 @@ Data: the target runs only on Juice Shop's bundled, fictional seed data (product
 
 Note for A: upstream ships answer files for this exact challenge under `data/static/codefixes/unionSqlInjectionChallenge_*`. If the agent sees or copies one, record that in the candidate's origin/guidance.
 
-Status: Expected-result fixtures pending B3 (needs a running baseline). See [the PRD](../../../docs/PRD.md).
+Status: `search-expectations.json` recorded from the pinned baseline. See [the PRD](../../../docs/PRD.md).

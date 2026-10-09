@@ -1,0 +1,12 @@
+{
+  "semgrepVersion": "1.180.0",
+  "rules": [
+    {
+      "id": "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection",
+      "url": "https://semgrep.dev/c/r/javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection",
+      "registryIds": { "r_id": 22085, "rv_id": 1263241, "rule_id": "yyU0GX", "version_id": "nWT2Llx" },
+      "sha256": "235e4a25122621020204045b5b452e37751dce8acd6a9e2bfeb053a3acbddb4e",
+      "license": "Semgrep Rules License v1.0 (fetched at scan time, not redistributed in this repo)"
+    }
+  ]
+}

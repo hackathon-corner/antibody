@@ -7,10 +7,18 @@
     "upstream_repo": "https://github.com/juice-shop/juice-shop.git",
     "repo": "https://github.com/juice-shop/juice-shop.git",
     "release_tag": "v20.2.0",
+    "tag_object": "c4e9b29ed0f9e4bbae3787aa2ca84267d57e5016",
     "commit": "5658473cf8814459bf89000ce373b20ed0b4eb37",
+    "commit_date": "2026-08-10T14:43:31+02:00",
     "note": "repo will point at the team fork once it exists; the commit must stay identical."
   },
   "allowed_paths": ["routes/search.ts"],
+  "selected_defect": {
+    "path": "routes/search.ts",
+    "line": 23,
+    "summary": "Request query `q` interpolated into a raw sequelize.query SQL string",
+    "upstream_challenges": ["unionSqlInjectionChallenge", "dbSchemaChallenge"]
+  },
   "base_images": {
     "git": "alpine/git:2.47.2@sha256:062a01ad7a0eb17cff382bc5e26086b4d710e56dfdfdf001109a49b6d9bd378c",
     "build": "node:24@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0",
@@ -19,5 +27,12 @@
   "dockerfile": "infra/containers/juice-shop/Dockerfile",
   "container_port": 3000,
   "search_path": "/rest/products/search",
-  "baseline_image_digest": null
+  "baseline_image_digest": null,
+  "local_baseline_package": {
+    "note": "Upstream release package used only for local baseline probing on darwin/arm64. Not source-built; not a deployment identity.",
+    "asset": "juice-shop-20.2.0_node22_darwin_arm64.zip",
+    "md5": "e8b979a105885370df9647b0c06166da",
+    "sha256": "afd4d0749283810f16cc939da38333f27195f8e116832bb64992f88462acba80"
+  },
+  "public_endpoint": { "status": "pending", "note": "No hosting credentials provisioned yet." }
 }
