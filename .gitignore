@@ -1,0 +1,15 @@
+.DS_Store
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+runtime/
+artifacts/
+.tmp/
+.cache/
+__pycache__/
+*.pyc
