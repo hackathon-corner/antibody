@@ -21,8 +21,8 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [x] `RunState`, `CheckStatus`, `DeployStatus` enums
 - [x] Package scaffolding (`pyproject.toml`, `src/contracts/__init__.py`)
 - [x] Circulate to B/C via README handoff section
-- [ ] B sign-off on `CheckResult`/`DeployRequest`/`DeployResult` shapes (needed before B4/B5 lock in)
-- [ ] C sign-off on `Event`/`Report` shapes (needed before C2/C3 lock in)
+- [x] B sign-off on `CheckResult`/`Observation` shapes — `docs/collab.md` Q7, both change requests applied
+- [x] C sign-off on `Event`/`Report` shapes — `docs/collab.md` Q1, both change requests applied; C2/C3 (ClickHouse schema, evidence API) built against them
 
 ## A4 — Host diff validation and immutable candidate identity
 
@@ -79,7 +79,7 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 ## Cross-cutting / do not skip
 
 - [x] Emit `Event` rows at each real transition — `RepairAgent` takes an injected `EventSink`, emits `candidate.proposed`/`candidate.rejected`/`checks.completed`/`deploy.requested`. Resolved with C: C owns the host runner (`src/server/runner.py`) and the ClickHouse-backed sink implementation; A's `RepairAgent` stays runner-agnostic (default no-op sink).
-- [ ] `run.state` transitions (`validating` → `failed`/`unresolved` etc.) are not emitted by `RepairAgent` itself — belongs to whoever owns `Run`, i.e. C's host runner. Confirm C is picking this up.
+- [x] `run.state` transitions confirmed implemented by C — `src/server/runner.py` catches any exception from `attempt_repair`/`request_deploy` (including `MaxAttemptsExceeded`) and moves `Run.state` to `FAILED`/`UNRESOLVED` with the reason recorded (`HostRunner._move`, around line 211-214). No action needed from A.
 - [x] Fallback plan recorded: Guild blocker documented above with full evidence and escalated, per PRD's own framing of a vendor failure as a legitimate run outcome.
 
 ## Immediate next actions (in order)
