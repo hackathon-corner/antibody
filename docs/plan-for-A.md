@@ -31,7 +31,7 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [x] Reject on any changed path outside `allowed_paths` (regex-parsed from real diff text, not declared metadata)
 - [x] Smoke-tested: forbidden-path patch rejected, in-scope patch accepted and hashed
 - [x] Unit tests in `tests/unit/test_validator.py`: empty patch, multi-file patch (allowed/forbidden mix), malformed diff text, stale commit, hash determinism (9 cases, all passing)
-- [ ] Confirm diff format assumption (`+++ b/<path>` unified diff) matches what Guild will actually emit — revisit if Guild returns full-file replacement instead of a diff
+- [x] Confirm diff format assumption — confirmed live (see A1/A3): Guild emits a `--- a/<path>` / `+++ b/<path>` unified diff matching the existing regex exactly, no format change needed.
 
 ## A1 — Prove Guild tool execution and Semgrep baseline detection
 
@@ -42,7 +42,7 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [x] Guild account: workspace created (`antibody-dev`, `01a1224a-2310-3bb9-0000-99807e6c2ff8`), CLI installed and authenticated as `g3ram`
 - [x] Guild: agent created (`antibody-repair-agent`, `01a12248-138c-726e-0000-1fcb7df24304`), one zero-dependency `ping` tool connected (no network/credentials, to isolate the test from tool-side failures)
 - [x] Guild: confirm a real session invokes the tool and returns a real result. **Resolved** — root cause was slow (30-60s) message acceptance on Guild's side; the CLI blocks on that before polling, which looked like a hang. Session `01a1225a-e05d-f268-0000-402df81a76a8` actually completed: `ping` tool called, returned `{"echoed": "A1 proof of life", "timestamp": "2026-10-09T20:29:38.868Z"}`. Confirmed via `guild session events <id>`, not just CLI stdout.
-- [ ] Confirm Guild agent has outbound access to call our adapters — next real test, now unblocked
+- [x] This item was based on a wrong mental model — the Guild agent doesn't call our adapters inbound; the host (`GuildPatchAdapter`) calls *out* to Guild. That direction is proven working (see A3). No inbound access needed.
 
 ## A3 — Scanner and patch-proposal tools
 
