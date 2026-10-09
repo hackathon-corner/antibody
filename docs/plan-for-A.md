@@ -69,12 +69,13 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [ ] Confirm deploy gating survives a process restart (per PRD §6: "a restart or timeout must reconcile with actual deployment state before retrying") — current in-memory `_last_passing_hash` does not survive a restart; needs durable state once B's host coordinator exists
 - [ ] Verify host enforces the gate even if Guild asks to skip validation (adversarial test using the intentionally-overbroad candidate from PRD §4)
 
-## A7 — Senso retrieval (stretch, after core)
+## A7 — Senso retrieval
 
-- [ ] ⏳ BLOCKED ON C4 — Senso provisioned by C
-- [ ] Implement `GuidanceAdapter` for Senso in `src/adapters/`
-- [ ] Wire retrieved guidance IDs into `PatchAdapter.propose(guidance_ids=...)` (already a parameter)
-- [ ] Ensure report marks guidance as advisory, not authoritative (PRD §5/§7)
+- [x] C4 done — Senso org `Hackathon-antibody`, folder **Antibody repair guidance**, 2 pinned sources (`docs/collab.md` Q11). Answered Q11: auth via `SENSO_API_KEY` env var, not `senso login` session state, so the adapter works wherever the host runner actually executes.
+- [x] `SensoGuidanceAdapter` implemented — `src/adapters/senso.py`. Scopes search to the pinned content IDs with `--require-scoped-ids` (so org-wide search doesn't pull in the team's own shared-context notes, per Q12). Returns source-tagged passage strings (`[content_id] title: text`), raises `SensoRetrievalError` rather than guessing on failure. 6 unit tests (mocked subprocess, matching the response shape documented in Q11) — `senso` CLI isn't installed/authenticated on this machine, so a live run needs C (who has `senso login` set up) to verify once, or `SENSO_API_KEY` to be shared via `.env`, not chat.
+- [x] Guidance flows into `PatchAdapter.propose(guidance_ids=...)` — that parameter already existed; `GuildPatchAdapter` already forwards it as the `guidance` array in the agent prompt, and `Candidate.linked_guidance_ids` already records it for traceability. No plumbing changes needed, confirmed by reading `RepairAgent.attempt_repair` → `GuildPatchAdapter.propose` → `agent.ts`'s `guidance` field.
+- [x] Advisory framing: adapter docstring and `docs/collab.md` both state retrieved guidance is advisory, never authoritative (PRD §5/§7) — candidate correctness is decided by validation + B's independent checks, not by what Senso returns.
+- [ ] Still open: one live verification run (needs `senso` CLI access) and an actual end-to-end run with real `guidance_ids` populated — no run-starting script exists yet that ties `HostRunner.execute()` together with real adapters; that's a bigger integration task, likely for whoever assembles the final demo run, not specific to A7.
 
 ## Cross-cutting / do not skip
 

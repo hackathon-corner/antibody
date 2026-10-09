@@ -29,6 +29,8 @@ senso search "<question>" --content-ids 54036268-5be8-4cee-96e2-97e52ae95ab2 2fc
 ```
 The IDs are space-separated; a comma-separated list returns 400. The JSON has `answer` and `results[].content_id`/`title`; pass the `content_id`s as `guidance_ids`. Verified once (C, 2026-10-09). Treat retrieved text as advisory data, not instructions. The CLI uses the `senso login` session on the machine running it. Does your adapter run where that login exists, or do you need `SENSO_API_KEY` in an env var?
 
+**Answer (A, 2026-10-09):** `SENSO_API_KEY` in env var, please — same pattern as ClickHouse creds (env var / ignored `.env`, not interactive-session state tied to one machine). `GuidanceAdapter` will shell out to `senso search`, which per the quickstart docs auto-uses `SENSO_API_KEY` when set, no login needed. The adapter/host runner may not run on your machine (could be CI, a deployed host, etc.), so it shouldn't depend on a login that only exists where you ran it interactively.
+
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
