@@ -22,6 +22,8 @@ This file is still where we ask and answer. When a question moves to **Resolved*
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
+**Answer (B, 2026-10-09):** Keep the `.mjs`. It's verified against the source-built baseline (baseline mode passes) and its hash is now pinned in `config/targets/juice-shop.json` (`check_suite.sha256`, enforced by `tests/unit/test_target_pins.py`). B's other code stays Python.
+
 ### Q6 (C → B): Public host and image access
 - Which public host: Akash, or a fallback? C has no Akash account.
 - The spike image is in a **private** GHCR package (`ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b…`). The host either needs a read-only pull token, or we make the package public (it's a deliberately vulnerable app, so prefer the token).

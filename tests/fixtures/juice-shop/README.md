@@ -10,4 +10,6 @@ Data: the target runs only on Juice Shop's bundled, fictional seed data (product
 
 Note for A: upstream ships answer files for this exact challenge under `data/static/codefixes/unionSqlInjectionChallenge_*`. If the agent sees or copies one, record that in the candidate's origin/guidance.
 
+`candidates/`: operator-supplied bad candidates for the rejection demo and negative controls. Label their origin as `operator-supplied-bad-candidate`, never as model output. `mutant-where-1-0.patch` replaces the search query with `WHERE 1=0`: no injection, but search returns nothing.
+
 Status: `search-expectations.json` recorded from the pinned baseline. See [the PRD](../../../docs/PRD.md).

@@ -21,9 +21,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 ## Next actions (in order)
 
 1. B2: C deploys `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` from the Akash Console with GHCR credentials attached (`read:packages` token, never committed). With the lease URL, run `python scripts/probe_public.py --url <lease URL> --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref sha256:2b20151b…` from outside the lease and record the output here. Closes B2.
-2. Run the suite in baseline mode against the source-built baseline (B3), and answer Q5 (keep the `.mjs` suite, recommended).
-3. Implement `DeployConnector.deploy(request)` for `src/server/runner.py` (B5). The image must be pullable with the same registry credentials.
-4. Negative control through the worker: the `WHERE 1=0` mutant (B4/B6).
+2. Implement `DeployConnector.deploy(request)` for `src/server/runner.py` (B5). The image must be pullable with the same registry credentials.
 
 ## 0. Workstation and access
 
@@ -48,10 +46,10 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 - [x] `baseline_image_digest` recorded: local image ID `sha256:e106dde7…` (registry digest comes in B2)
 - [x] Source-built baseline runs and `smoke` returns products for `q=apple` (ids 1, 24, 47; local, 2026-10-09)
 - [x] Injection reproduced on the source-built baseline: `q=xyz` returns 0 products, `q=xyz')) OR 1=1--` returns 56
-- [ ] Confirmed only Juice Shop's bundled fictional seed data is in use
+- [x] Confirmed only Juice Shop's bundled fictional seed data is in use (2026-10-09, source-built baseline): no volumes or env overrides on the container; the 23 listed users all come from upstream `data/static/users.yml` at the pinned commit (including its two maintainer addresses), plus our synthetic `@antibody.invalid` canaries; 46 products
 - [x] A told the pin is ready (`18348ca`; acknowledged in [plan-for-A.md](../plan-for-A.md))
 - [x] A told about upstream answer files `data/static/codefixes/unionSqlInjectionChallenge_*` (collab Q4; A excludes them from agent context, C's `src/server/answer_match.py` flags exact matches)
-- [ ] Decide `targetId` in `tests/fixtures/juice-shop/search-expectations.json` (`juice-shop-v20.2.0`) vs `target_id` in the target config (`juice-shop`); check reports carry the fixture's value
+- [x] Keep both ids (B, 2026-10-09): `target_id` `juice-shop` is the identity (config file, image tag, `Run.target_id`); the fixture's `targetId` `juice-shop-v20.2.0` is a version label in the suite report only. Renaming it would change the suite hash
 
 ## Contract review with A (before B4/B5)
 
@@ -77,10 +75,10 @@ Suite written by C in the spike; B owns it from here.
 - [x] Protected endpoint: `/api/Users` 401 unauthenticated, 200 authenticated
 - [x] Expected results recorded in `tests/fixtures/juice-shop/search-expectations.json` (from the upstream release package, not a source-built image)
 - [x] Negative controls observed: candidate mode fails on the unrepaired baseline; a `WHERE 1=0` mutant fails `search.ordinary` ([decision 0002](../decisions/0002-target-pin-and-checks.md))
-- [ ] Re-run in baseline mode against the source-built baseline image and confirm the expectations hold
-- [ ] Suite hash recorded somewhere fixed (the suite computes it at run time as `suite.sha256`; the CI output records it as `suiteSha256`)
-- [ ] Definitions out of the agent's reach (the validator only allows `routes/search.ts`; confirm the worker reads the suite from the host checkout, not from the candidate)
-- [ ] Q5 answered: keep `.mjs` or port to Python (keep fixture file and check IDs either way)
+- [x] Re-run in baseline mode against the source-built baseline image (`sha256:e106dde7…`, fresh container, 2026-10-09): overall `pass`. Ordinary search matches all 6 queries; injection reproduced (canary leaked, 24 credential-shaped rows); access boundary 401/200; edge cases observed (quote → HTTP 500). Output in ignored `artifacts/b3/baseline-source-built.json`
+- [x] Suite hash recorded: `check_suite.sha256` = `be833ec4…` in `config/targets/juice-shop.json`; `tests/unit/test_target_pins.py` fails if the suite or fixture changes without updating it
+- [x] Definitions out of the agent's reach: the worker bind-mounts the suite and fixture read-only from the host checkout into a separate pinned Node container (`src/adapters/check_worker.py:227`); the candidate only changes `routes/search.ts` inside the image build
+- [x] Q5 answered: keep `.mjs` (B, 2026-10-09)
 
 ## B4. Isolated candidate verification worker
 
@@ -90,7 +88,7 @@ Suite written by C in the spike; B owns it from here.
 - [x] An error or unknown result blocks release: timeouts, unparseable output, suite-hash or mode mismatch, exit/overall disagreement and a target that never starts are `ERROR`; `build_candidate` refuses anything without a passing record (unit-tested)
 - [x] Entry points match the runner's `build_candidate(Candidate) -> str` and A's `run_checks(Candidate) -> tuple[CheckResult, ...]` (`load_worker()`)
 - [ ] A wires `load_worker().run_checks` into `RepairAgent`, and C passes `build_candidate` to `HostRunner.execute`
-- [ ] Negative control through the worker: the `WHERE 1=0` mutant is rejected
+- [x] Negative control through the worker: the `WHERE 1=0` mutant is rejected. operator-supplied `tests/fixtures/juice-shop/candidates/mutant-where-1-0.patch` (origin `operator-supplied-bad-candidate`, candidate `37818c3f…`, image `sha256:412454ae…`, suite `be833ec4…`, 2026-10-09): `search.ordinary` fails (0 products for every query) while injection, edge cases and access boundary pass; `build_candidate` refused it
 - [x] Suite hash no longer depends on line endings: `tests/e2e/**` and `tests/fixtures/**` pinned to `eol=lf` in `.gitattributes`. Windows now hashes the suite as `be833ec4…`, matching CI run 37983610899
 
 ## B5. Fixed deployment connector and external verification
@@ -102,7 +100,7 @@ Suite written by C in the spike; B owns it from here.
 
 ## B6. Bad-candidate tests (with A)
 
-- [ ] Candidate that breaks search is rejected by the same gate (start from the `WHERE 1=0` mutant)
+- [x] Candidate that breaks search is rejected by the same gate: the `WHERE 1=0` mutant through `run_checks` + `build_candidate` (see B4)
 - [ ] Candidate that edits tests or forbidden paths is rejected before build
 - [ ] A legitimate repair passes; each candidate's origin is labeled accurately (supplied mutants are labeled as supplied, never as model output)
 

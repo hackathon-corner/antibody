@@ -29,6 +29,11 @@
   "search_path": "/rest/products/search",
   "baseline_image_digest": "sha256:e106dde77c342516cc3c6dba9ef936f3e13de3cbb358c1375261df20350b9c57",
   "baseline_image_digest_note": "Local image ID from scripts/target.py build on the B workstation (2026-10-09). Not a registry digest; B2 records the pushed digest.",
+  "check_suite": {
+    "files": ["tests/e2e/juice-shop-checks.mjs", "tests/fixtures/juice-shop/search-expectations.json"],
+    "sha256": "be833ec480ee429a421cfaccb830204fc4a17a191bc8bdac3c895da81d927b7b",
+    "note": "sha256 over the newline-joined sha256 of each file (LF checkout). Change the suite or fixture and this value together; tests/unit/test_target_pins.py fails otherwise."
+  },
   "local_baseline_package": {
     "note": "Upstream release package used only for local baseline probing on darwin/arm64. Not source-built; not a deployment identity.",
     "asset": "juice-shop-20.2.0_node22_darwin_arm64.zip",
