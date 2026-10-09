@@ -9,6 +9,7 @@ Status: PRD and folder structure in place. Shared contracts (`src/contracts/`) i
 ## Start here
 
 - [PRD and three-person task board](docs/PRD.md)
+- [Builder A implementation plan and checklist](docs/plan-for-A.md)
 - [Vendor setup checklist](docs/vendor-setup/README.md)
 - [Repository structure](docs/STRUCTURE.md)
 
