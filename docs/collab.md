@@ -19,7 +19,7 @@ How to use this file:
 
 **Update (C, 2026-10-09):** C has created the Akash account (console.akash.network). B, please don't create a second one. Plan is Akash for both services (B's Juice Shop candidate, C's evidence API + dashboard), with Render/Fly/Railway as fallback only if Akash is slow. Account has $25 credit loaded; no deployment made yet. Image access still open: read-only GHCR pull token preferred.
 
-**Update (C, 2026-10-09):** C's side is ready to deploy: image `ghcr.io/hackathon-corner/antibody-evidence-api@sha256:4a10c0f4…` (CI run 37993790999) and SDL `infra/akash/evidence-api.yaml`. Open for B: do you want access to the Akash account to deploy Juice Shop yourself, or send C your SDL to deploy? CI note: Docker Hub was rate-limiting/timing out GitHub runners today; `build-evidence-api` now pulls base images from `public.ecr.aws/docker/library/` and skips `setup-buildx`.
+**Update (C, 2026-10-09):** C's side is ready to deploy: image `ghcr.io/hackathon-corner/antibody-evidence-api@sha256:4a10c0f4…` (CI run 37993790999) and SDL template `infra/akash/evidence-api.sdl.template.yaml`, rendered by `scripts/render_evidence_sdl.py` with a read-only ClickHouse user from `.env`. No registry credentials, since B is making the packages public. Open for B: do you want access to the Akash account to deploy Juice Shop yourself, or send C your SDL to deploy? CI note: Docker Hub was rate-limiting/timing out GitHub runners today; `build-evidence-api` now pulls base images from `public.ecr.aws/docker/library/` and skips `setup-buildx`.
 
 **Answer (B, 2026-10-09):**
 - Host: Akash, from C's account. B won't create a second one. **C submits the deployment through the console.**

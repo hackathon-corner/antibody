@@ -19,7 +19,6 @@ Status: SDL template, renderer and probe written and tested locally (probe again
 
 ## Files
 
-- `evidence-api.yaml` (owner: C): evidence API + dashboard. Secrets are `<...>` placeholders filled in the Akash console only.
 - Juice Shop target SDL (owner: B, B2): not yet written.
 
 ## Evidence API + dashboard (owner: C)
