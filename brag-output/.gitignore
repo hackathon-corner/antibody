@@ -1,0 +1,4 @@
+work/*
+!work/video.html
+!work/capture.mjs
+!work/audio.py

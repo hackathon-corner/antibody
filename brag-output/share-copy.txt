@@ -1,0 +1,1 @@
+One search query pulled 24 credential-shaped rows out of our own Juice Shop deployment. Antibody is the agent that fixes the injection, then has to prove apple still returns 3 products before anything ships. The patch that "fixed" it by returning nothing? Rejected. github.com/hackathon-corner/antibody

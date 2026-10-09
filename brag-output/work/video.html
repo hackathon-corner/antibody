@@ -1,0 +1,289 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{
+  --bg:#0e0f11; --panel:#1c1e21; --panel2:#17191c; --line:#2c2f33; --text:#e8e9ea; --muted:#9a9ea4;
+  --accent:#8aa9ff; --ok-bg:#173323; --ok-fg:#8fd9a8; --bad-bg:#3a1c19; --bad-fg:#f3a197; --warn-fg:#e8c76b;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+#stage{position:absolute;inset:0;overflow:hidden}
+#glow{position:absolute;inset:-200px}
+#grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:64px 64px;opacity:.22;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 45%,#000 0%,transparent 75%)}
+.scene{position:absolute;inset:0;opacity:0}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.pill{display:inline-block;padding:6px 16px;border-radius:999px;font-size:24px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.pill.bad{background:var(--bad-bg);color:var(--bad-fg)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px}
+.chip{display:inline-flex;align-items:center;gap:12px;font-size:26px;font-weight:600;color:var(--accent);letter-spacing:.02em;text-transform:uppercase}
+.chip b{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;border:2px solid var(--accent);font-size:22px}
+.caption{position:absolute;left:0;right:0;bottom:84px;text-align:center;font-size:58px;font-weight:700;letter-spacing:-.02em}
+.caption span{display:inline-block}
+.w{display:inline-block;white-space:pre}
+
+/* S1 */
+#s1 .req{position:absolute;left:160px;top:120px;width:1600px;padding:28px 36px;display:flex;align-items:center;gap:24px;font-size:38px}
+#s1 .verb{color:var(--accent);font-weight:700}
+#s1 .payload{color:var(--bad-fg)}
+#s1 .cursor{display:inline-block;width:3px;height:44px;background:var(--text);vertical-align:-8px;margin-left:2px}
+#s1 .label{position:absolute;left:162px;top:72px;font-size:24px;color:var(--muted);letter-spacing:.04em}
+#s1 .resp{position:absolute;left:160px;top:250px;width:1600px;height:780px;overflow:hidden;padding:28px 36px;
+  -webkit-mask-image:linear-gradient(#000 55%,transparent 98%)}
+#s1 .status{font-size:28px;margin-bottom:20px;display:flex;gap:18px;align-items:center}
+#s1 .rowclip{position:absolute;left:36px;right:36px;top:90px;bottom:0;overflow:hidden}
+#s1 .rows{position:relative}
+#s1 .row{font-family:var(--mono);font-size:26px;line-height:44px;color:var(--bad-fg);white-space:nowrap;opacity:0}
+#s1 .row .k{color:var(--muted)}
+#s1 .red{display:inline-block;background:var(--bad-fg);opacity:.55;height:20px;border-radius:4px;vertical-align:-2px}
+#s1 .headline{position:absolute;left:160px;bottom:110px;font-size:104px;font-weight:800;letter-spacing:-.035em;line-height:1.02}
+#s1 .headline .n{color:var(--bad-fg)}
+#s1 .shade{position:absolute;inset:0;background:linear-gradient(transparent 30%,rgba(14,15,17,.92) 72%)}
+
+/* S2 */
+#s2 .wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+#s2 .kicker{font-size:30px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+.mark{display:flex;align-items:center;gap:40px}
+.mark .word{font-size:200px;font-weight:800;letter-spacing:-.05em;line-height:1}
+#s2 .line{font-size:62px;font-weight:600;letter-spacing:-.02em;text-align:center;max-width:1500px;line-height:1.15}
+#s2 .line .g{color:var(--ok-fg)}
+
+/* S3 */
+.top{position:absolute;left:160px;top:96px}
+#s3 .finding{position:absolute;left:160px;top:180px;width:1600px;padding:28px 36px;display:flex;align-items:center;gap:26px;font-size:30px}
+#s3 .finding .path{font-family:var(--mono);font-size:32px;font-weight:600}
+#s3 .diff{position:absolute;left:160px;top:330px;width:1600px;padding:30px 0;font-family:var(--mono);font-size:30px;line-height:50px}
+#s3 .dl{padding:0 36px;white-space:pre;opacity:0}
+#s3 .dl.m{background:rgba(243,161,151,.09);color:var(--bad-fg)}
+#s3 .dl.p{background:rgba(143,217,168,.09);color:var(--ok-fg)}
+#s3 .hl{background:rgba(243,161,151,.28);border-radius:4px;padding:0 2px}
+#s3 .hlg{background:rgba(143,217,168,.25);border-radius:4px;padding:0 2px}
+#s3 .who{position:absolute;right:196px;top:352px;font-size:24px;font-family:var(--sans)}
+
+/* S4 / S5 table */
+.checks{position:absolute;left:160px;top:180px;width:1600px;padding:14px 0}
+.ck{display:grid;grid-template-columns:520px 1fr 170px;align-items:center;padding:0 40px;height:78px;border-bottom:1px solid var(--line);font-size:32px;opacity:0}
+.ck:last-child{border-bottom:none}
+.ck .q{font-family:var(--mono);font-size:30px}
+.ck .res{color:var(--muted)}
+.ck .res b{color:var(--text);font-weight:700}
+.ck .pc{text-align:right}
+#s5 .checks{top:320px}
+#s5 .ck{height:104px;font-size:38px}
+#s5 .ck .q{font-size:36px}
+#s5 .stamp{top:480px}
+#s5 .cand{position:absolute;left:160px;top:180px;font-size:30px;display:flex;gap:22px;align-items:center}
+#s5 .stamp{position:absolute;left:50%;font-size:150px;font-weight:900;letter-spacing:.06em;color:var(--bad-fg);border:12px solid var(--bad-fg);border-radius:24px;padding:4px 48px;opacity:0;background:rgba(14,15,17,.75)}
+
+/* S6 */
+#s6 .wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px}
+#s6 .line{font-size:72px;font-weight:700;letter-spacing:-.025em}
+#s6 .line .g{color:var(--ok-fg)}
+#s6 .spons{font-size:30px;color:var(--muted);letter-spacing:.04em}
+#s6 .spons i{font-style:normal;color:var(--line);margin:0 18px}
+#s6 .url{font-family:var(--mono);font-size:32px;color:var(--accent);padding:14px 30px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+</style></head>
+<body><div id="stage">
+<div id="glow"></div><div id="grid"></div>
+
+<!-- S1 hook -->
+<div class="scene" id="s1">
+  <div class="label">OWASP JUICE SHOP · OUR OWN PUBLIC DEPLOYMENT</div>
+  <div class="req panel"><span class="verb">GET</span><span class="mono">/rest/products/search?q=<span class="payload" id="typed"></span><span class="cursor" id="cur"></span></span></div>
+  <div class="resp panel" id="resp">
+    <div class="status"><span class="pill bad" id="st">200 OK</span><span class="mono muted" id="rc">0 rows</span></div>
+    <div class="rowclip"><div class="rows" id="rows"></div></div>
+  </div>
+  <div class="shade" id="shade"></div>
+  <div class="headline" id="hl"><div id="hl1">One search query.</div><div id="hl2"><span class="n">24</span> leaked credentials.</div></div>
+</div>
+
+<!-- S2 reveal -->
+<div class="scene" id="s2"><div class="wrap">
+  <div class="kicker" id="k2">An autonomous repair agent</div>
+  <div class="mark" id="m2"><svg id="glyph2" width="170" height="170" viewBox="0 0 100 100"></svg><div class="word">Antibody</div></div>
+  <div class="line" id="l2"></div>
+</div></div>
+
+<!-- S3 find & fix -->
+<div class="scene" id="s3">
+  <div class="top chip" id="c3"><b>1</b>Find &amp; fix</div>
+  <div class="finding panel" id="f3"><span class="pill bad">Semgrep · ERROR</span><span class="path">routes/search.ts:23</span><span class="muted">express-sequelize-injection · CWE-89</span></div>
+  <div class="diff panel" id="d3">
+    <div class="dl m">- models.sequelize.query(`SELECT * FROM Products</div>
+    <div class="dl m">-   WHERE ((name LIKE '%<span class="hl">${criteria}</span>%'</div>
+    <div class="dl m">-   OR description LIKE '%<span class="hl">${criteria}</span>%') …`)</div>
+    <div class="dl p">+ models.sequelize.query('SELECT * FROM Products</div>
+    <div class="dl p">+   WHERE ((name LIKE <span class="hlg">:q</span> OR description LIKE <span class="hlg">:q</span>) …',</div>
+    <div class="dl p">+   { <span class="hlg">replacements</span>: { q: `%${criteria}%` } })</div>
+  </div>
+  <div class="who pill" id="who" style="background:#1f2740;color:var(--accent)">Guild agent · proposing<span id="dots"></span></div>
+  <div class="caption" id="cap3"></div>
+</div>
+
+<!-- S4 prove -->
+<div class="scene" id="s4">
+  <div class="top chip" id="c4"><b>2</b>Prove it · independent checks</div>
+  <div class="checks panel" id="t4"></div>
+  <div class="caption" id="cap4"></div>
+</div>
+
+<!-- S5 reject -->
+<div class="scene" id="s5">
+  <div class="top chip" id="c5"><b>3</b>Bad patches don't ship</div>
+  <div class="cand" id="cand5"><span class="muted">Another candidate:</span><span class="mono" style="color:var(--warn-fg)">… WHERE 1=0</span></div>
+  <div class="checks panel" id="t5"></div>
+  <div class="stamp" id="stamp">REJECTED</div>
+  <div class="caption" id="cap5"></div>
+</div>
+
+<!-- S6 outro -->
+<div class="scene" id="s6"><div class="wrap">
+  <div class="mark" id="m6"><svg id="glyph6" width="150" height="150" viewBox="0 0 100 100"></svg><div class="word" style="font-size:170px">Antibody</div></div>
+  <div class="line" id="l6">Only a <span class="g">verified</span> patch ships.</div>
+  <div class="spons" id="sp6">Guild AI<i>/</i>Semgrep<i>/</i>ClickHouse<i>/</i>Senso<i>/</i>Akash</div>
+  <div class="url" id="u6">github.com/hackathon-corner/antibody</div>
+</div></div>
+
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const eo=x=>1-Math.pow(1-clamp(x),3);
+const eio=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const back=x=>{x=clamp(x);const c=1.6;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const p=(t,a,d)=>clamp((t-a)/d);
+// window visibility: in over [a,a+di], out over [b,b+do]
+const vis=(t,a,b,di=.3,dout=.2)=>eo(p(t,a,di))*(1-eo(p(t,b,dout)));
+
+// Antibody glyph: a Y with binding tips
+function glyph(svg,color){svg.innerHTML=`
+ <g fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+  <path class="gp" d="M50 92 L50 56 L22 22"/><path class="gp" d="M50 56 L78 22"/>
+  <path class="gp" d="M36 76 L50 62 L64 76" stroke-width="0"/>
+ </g>
+ <circle class="gc" cx="18" cy="17" r="9" fill="${color}"/><circle class="gc" cx="82" cy="17" r="9" fill="${color}"/>`;}
+glyph($('glyph2'),'#8aa9ff');glyph($('glyph6'),'#8fd9a8');
+function drawGlyph(svg,k){svg.querySelectorAll('.gp').forEach(e=>{const L=e.getTotalLength?e.getTotalLength():120;e.style.strokeDasharray=L;e.style.strokeDashoffset=L*(1-eio(k))});
+  svg.querySelectorAll('.gc').forEach((c,i)=>{const s=back(p(k,.55+i*.1,.35));c.setAttribute('r',9*s)});}
+
+// words helper
+function words(el,html){el.innerHTML=html;}
+function wordify(el,text,cls){el.innerHTML=text.split(' ').map(w=>`<span class="w">${w} </span>`).join('');}
+function staggerWords(el,t,a,step=.06,d=.28){[...el.querySelectorAll('.w')].forEach((w,i)=>{const k=eo(p(t,a+i*step,d));w.style.opacity=k;w.style.transform=`translateY(${(1-k)*26}px)`;});}
+
+// S1 rows (redacted)
+const rowsEl=$('rows');
+const widthsA=[150,120,170,96,140,180,110,160,130,104,176,124,146,92,168,136,118,158,100,172,128,150,112,164];
+for(let i=0;i<24;i++){const r=document.createElement('div');r.className='row';
+ r.innerHTML=`{ <span class="k">"id":</span> ${i+1}, <span class="k">"name":</span> "<span class="red" style="width:${widthsA[i]}px"></span>@juice-sh.op", <span class="k">"description":</span> "<span class="red" style="width:${340+((i*53)%160)}px"></span>" }`;
+ rowsEl.appendChild(r);}
+const payload="xyz')) OR 1=1--";
+
+// captions
+wordify($('l2'),'Closes a security hole');
+$('l2').innerHTML+= '<br>'+'without closing the business.'.split(' ').map(w=>`<span class="w g">${w} </span>`).join('');
+wordify($('cap3'),'Semgrep finds it. A Guild agent writes the patch.');
+wordify($('cap4'),'Search still works. The attack returns nothing.');
+$('cap5').innerHTML='Closed the hole by closing the business? <span class="w" style="color:var(--bad-fg)">Rejected.</span>'.replace(/^([^<]*)/,m=>m.split(' ').filter(Boolean).map(w=>`<span class="w">${w} </span>`).join(''));
+
+// S4 table (real numbers: artifacts + public probe)
+const c4=[
+ ['"apple"','<b>3</b> products · expected 3'],
+ ['"banana"','<b>1</b> product · expected 1'],
+ ['"lemon"','<b>1</b> product · expected 1'],
+ ['"raspberry"','<b>2</b> products · expected 2'],
+ ['"juice"','<b>35</b> products · expected 35'],
+ ["xyz')) OR 1=1--",'<b>0</b> rows leaked · was 24'],
+ ['GET /api/Users, no auth','<b>401</b> · still denied'],
+];
+$('t4').innerHTML=c4.map(([q,r])=>`<div class="ck"><span class="q">${q}</span><span class="res">${r}</span><span class="pc"><span class="pill ok">pass</span></span></div>`).join('');
+const c5=[
+ ["xyz')) OR 1=1--",'<b>0</b> rows leaked','ok','pass'],
+ ['"apple"','<b>0</b> products · expected 3','bad','fail'],
+ ['"juice"','<b>0</b> products · expected 35','bad','fail'],
+];
+$('t5').innerHTML=c5.map(([q,r,c,l])=>`<div class="ck"><span class="q">${q}</span><span class="res">${r}</span><span class="pc"><span class="pill ${c}">${l}</span></span></div>`).join('');
+
+function sceneXform(el,t,a,b){const k=vis(t,a,b);el.style.opacity=k;const inK=eo(p(t,a,.45));const outK=eo(p(t,b,.2));el.style.transform=`translateY(${(1-inK)*24 - outK*10}px) scale(${1-outK*.015})`;return k;}
+
+function render(t){
+ // background glow color by scene
+ const hue = t<3.5?[243,110,100]: t<7.5?[138,169,255]: t<11.5?[138,169,255]: t<15.5?[143,217,168]: t<19?[243,140,120]:[143,217,168];
+ const pulse = t<3.5? .16+.14*eo(p(t,.6,.5)) : .16;
+ $('glow').style.background=`radial-gradient(900px 600px at ${50+8*Math.sin(t*.35)}% ${35+6*Math.cos(t*.3)}%, rgba(${hue},${pulse}), transparent 70%)`;
+ $('grid').style.transform=`translateY(${-(t*12)%64}px)`;
+
+ // S1 0–3.5
+ const s1=$('s1'); s1.style.opacity=1-eo(p(t,3.28,.2)); s1.style.transform=`scale(${1+.02*eo(p(t,3.28,.2))})`;
+ const rk=eio(p(t,.5,.28)); const req=document.querySelector('#s1 .req'); req.style.transform=`translateY(${(1-rk)*360}px) scale(${1.18-.18*rk})`; document.querySelector('#s1 .label').style.transform=`translateY(${(1-rk)*360}px)`;
+ const n=Math.floor(clamp((t-.05)/.45)*payload.length); $('typed').textContent=payload.slice(0,n);
+ $('cur').style.opacity = t<.6 ? 1 : (Math.floor(t*3)%2?0:1)*(t<1?1:0);
+ const flood=p(t,.82,.5);
+ $('resp').style.opacity=eo(p(t,.76,.1));
+ const shown=Math.floor(flood*24);
+ $('rc').textContent=`${shown} rows · credential-shaped`;
+ [...rowsEl.children].forEach((r,i)=>{const k=eo(p(t,.82+i*.02,.12));r.style.opacity=k;r.style.transform=`translateX(${(1-k)*-30}px)`;});
+ rowsEl.style.transform=`translateY(${-Math.max(0,(t-1.05))*70}px)`;
+ $('shade').style.opacity=eo(p(t,1.05,.35));
+ const h1=eo(p(t,1.05,.25)),h2=eo(p(t,1.17,.25));
+ $('hl1').style.opacity=h1;$('hl1').style.transform=`translateY(${(1-h1)*30}px)`;
+ $('hl2').style.opacity=h2;$('hl2').style.transform=`translateY(${(1-h2)*30}px)`;
+ // shake on flood
+ const sh=Math.max(0,1-Math.abs(t-.9)/.25)*6; $('resp').style.transform=`translate(${Math.sin(t*90)*sh}px,0)`;
+
+ // S2 3.5–7.5
+ const s2=$('s2'); sceneXform(s2,t,3.5,7.3);
+ drawGlyph($('glyph2'),p(t,3.55,.7));
+ const kk=eo(p(t,3.55,.3)); $('k2').style.opacity=kk;
+ const mk=eo(p(t,3.65,.4)); $('m2').style.opacity=mk; $('m2').style.transform=`translateY(${(1-mk)*30}px)`;
+ staggerWords($('l2'),t,4.0,.045);
+
+ // S3 7.5–11.5
+ sceneXform($('s3'),t,7.5,11.3);
+ $('c3').style.opacity=eo(p(t,7.55,.3));
+ const fk=eo(p(t,7.65,.35)); $('f3').style.opacity=fk; $('f3').style.transform=`translateY(${(1-fk)*20}px)`;
+ $('d3').style.opacity=eo(p(t,7.9,.3));
+ [...$('d3').children].forEach((d,i)=>{const a=i<3?8.0+i*.12:9.25+(i-3)*.16;const k=eo(p(t,a,.25));d.style.opacity=k;d.style.transform=`translateX(${(1-k)*-24}px)`;
+   if(i<3){const st=eo(p(t,9.05,.3));d.style.opacity=k*(1-.45*st);}});
+ const wk=eo(p(t,8.55,.25)); $('who').style.opacity=wk;
+ $('who').firstChild.textContent = t<9.25?'Guild agent · proposing':'Guild agent · patch proposed';
+ $('dots').textContent = t<9.25? '.'.repeat(1+Math.floor(t*6)%3) : '';
+ $('who').style.background = t<9.25?'#1f2740':'var(--ok-bg)'; $('who').style.color=t<9.25?'var(--accent)':'var(--ok-fg)';
+ staggerWords($('cap3'),t,7.7,.05);
+
+ // S4 11.5–15.5
+ sceneXform($('s4'),t,11.5,15.3);
+ $('c4').style.opacity=eo(p(t,11.55,.3));
+ $('t4').style.opacity=eo(p(t,11.6,.3));
+ [...$('t4').children].forEach((r,i)=>{const a=11.75+i*.2;const k=eo(p(t,a,.25));r.style.opacity=k;r.style.transform=`translateY(${(1-k)*14}px)`;
+   const pk=back(p(t,a+.12,.3));const pill=r.querySelector('.pill');pill.style.transform=`scale(${pk})`;pill.style.opacity=clamp(pk);});
+ staggerWords($('cap4'),t,11.7,.05);
+
+ // S5 15.5–19
+ sceneXform($('s5'),t,15.5,18.8);
+ $('c5').style.opacity=eo(p(t,15.55,.3));
+ $('cand5').style.opacity=eo(p(t,15.65,.3));
+ $('t5').style.opacity=eo(p(t,15.75,.3));
+ [...$('t5').children].forEach((r,i)=>{const a=15.85+i*.35;const k=eo(p(t,a,.25));r.style.opacity=k;r.style.transform=`translateY(${(1-k)*14}px)`;
+   const pk=back(p(t,a+.12,.3));const pill=r.querySelector('.pill');pill.style.transform=`scale(${pk})`;pill.style.opacity=clamp(pk);});
+ const sk=p(t,16.75,.22); $('stamp').style.opacity=eo(sk);
+ $('stamp').style.transform=`translate(-50%,-50%) rotate(-8deg) scale(${1.9-0.9*eo(sk)})`;
+ $('t5').style.filter=`blur(${eo(sk)*2}px)`;
+ staggerWords($('cap5'),t,15.7,.05);
+
+ // S6 19–22
+ const s6=$('s6'); s6.style.opacity=eo(p(t,19.0,.35)); s6.style.transform=`translateY(${(1-eo(p(t,19,.45)))*24}px)`;
+ drawGlyph($('glyph6'),p(t,19.05,.7));
+ const m6=eo(p(t,19.1,.4)); $('m6').style.opacity=m6;
+ const l6=eo(p(t,19.35,.35)); $('l6').style.opacity=l6; $('l6').style.transform=`translateY(${(1-l6)*24}px)`;
+ $('sp6').style.opacity=eo(p(t,19.6,.35));
+ const u6=eo(p(t,19.75,.35)); $('u6').style.opacity=u6; $('u6').style.transform=`translateY(${(1-u6)*16}px)`;
+}
+window.render=render;
+render(Number(new URLSearchParams(location.search).get('t')||0));
+</script></body></html>
