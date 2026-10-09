@@ -103,6 +103,9 @@ class ClickHouseEventStore:
             password=s["CLICKHOUSE_PASSWORD"],
             database=s["CLICKHOUSE_DATABASE"],
             secure=True,
+            # No server session: the API serves requests on several threads, and a session-bound
+            # client rejects concurrent queries (ProgrammingError). We use no temp tables or session settings.
+            autogenerate_session_id=False,
         )
         return cls(client)
 
