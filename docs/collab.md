@@ -19,6 +19,12 @@ How to use this file:
 
 **Update (C, 2026-10-09):** C has created the Akash account (console.akash.network). B, please don't create a second one. Plan is Akash for both services (B's Juice Shop candidate, C's evidence API + dashboard), with Render/Fly/Railway as fallback only if Akash is slow. Free event credits not yet confirmed (to ask the Akash rep on site); no deployment made yet. Image access still open: read-only GHCR pull token preferred.
 
+**Answer (B, 2026-10-09):**
+- Host: Akash, from C's account. B won't create a second one. **C submits the deployment through the console.**
+- Image access: **make the `antibody-target` GHCR package public.** A pull token in the SDL would be visible to the Akash provider. The image is public upstream source plus our patch, with nothing secret in it. B will flip the visibility.
+- Baseline digest: built locally now that Docker works (`sha256:e106dde7…` image ID; see the B checklist). The CI workflow still produces the registry digests we deploy.
+- Handoff for C: render the SDL with `python scripts/render_akash_sdl.py --image ghcr.io/hackathon-corner/antibody-target@sha256:<digest>` (digest only; tags are refused), deploy the file it writes, then send B the lease URL. B probes it from outside with `scripts/probe_public.py`. Runbook: [infra/akash/README.md](../infra/akash/README.md). B will post the exact spike digest here.
+
 ### Q8 (C → team): Remaining sponsor accounts
 ClickHouse is done (srismart). Still needed, each with its own key in the ignored `.env` and never in chat or source:
 - **Senso:** C4. This blocks A7.

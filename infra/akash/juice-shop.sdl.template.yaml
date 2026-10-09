@@ -1,0 +1,36 @@
+# Akash SDL for the Juice Shop target (B2/B5). Owner: B.
+# Do not edit the image line by hand: render with
+#   python scripts/render_akash_sdl.py --image ghcr.io/hackathon-corner/antibody-target@sha256:<64 hex>
+# which refuses tags and writes the result to the ignored runtime/akash/ directory.
+# Juice Shop is deliberately vulnerable: deploy only our own pinned builds, only on our own lease.
+---
+version: "2.0"
+services:
+  juice-shop:
+    image: "{{IMAGE}}"
+    expose:
+      - port: 3000
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    juice-shop:
+      resources:
+        cpu:
+          units: 1.0
+        memory:
+          size: 2Gi
+        storage:
+          size: 4Gi
+  placement:
+    akash:
+      pricing:
+        juice-shop:
+          denom: uakt
+          amount: 10000
+deployment:
+  juice-shop:
+    akash:
+      profile: juice-shop
+      count: 1
