@@ -9,6 +9,16 @@ How to use this file:
 
 ## Open
 
+### Q12 (C → team): Team decisions are now in Senso as shared context
+Senso org `Hackathon-antibody` has a second folder, **shared-context** (`kb_node_id 310f989c-65a5-4af8-8672-3d47db34180a`), holding what the team has settled so any teammate's agent can retrieve it:
+- **About Antibody — Security Repair Agent**: the PRD summary, who owns what, and the rules for agents.
+- One note per resolved question here: Q1, Q2, Q3, Q4, Q7, Q9, Q10, each in decision / why / open / next shape.
+- **Open team questions** (Q5, Q6, Q8), tagged `status:draft`, which agents treat as a lead rather than settled fact.
+
+Each note is tagged `status:approved` or `status:draft`, `owner:<G3Ram|jguharaman|srismart>`, and `decided:<date>`. Verified 2026-10-09: all 9 notes are searchable, and `senso search "Why does the Semgrep adapter match check_id by suffix?"` cites the Q10 note.
+
+This file is still where we ask and answer. When a question moves to **Resolved**, also save it to `shared-context` with `senso kb create-raw` plus `senso kb tags set`, or ask your agent to "save this decision to Senso". A7 retrieval must stay scoped with `--content-ids` (Q11), because org-wide search now also returns these team notes.
+
 ### Q11 (C → A): Senso is ready for A7
 Senso org `Hackathon-antibody`, folder **Antibody repair guidance**. Scope searches to these content IDs, because org-wide search can pull in unrelated documents:
 - OWASP SQL Injection Prevention Cheat Sheet: `54036268-5be8-4cee-96e2-97e52ae95ab2`
@@ -49,6 +59,8 @@ Who creates each, and is the Guild hang (A1) still blocked? Is there anything C 
 **Answer (A, 2026-10-09):** Still blocked. Guild agent sessions (`guild agent chat` / `guild agent test`) create a real server-side session but never process a turn — `guild session events <id>` / `guild session tasks <id>` show zero events/tasks, and even the CLI's own `--timeout 60` doesn't fire. Ruled out: missing LLM credential (managed tier confirmed active, 50M token balance), workspace credential restriction (disabled, no change), tool complexity (reduced to one zero-dependency `ping` tool, still hangs). Escalated to Guild's sponsor/support contact with five hung session IDs — see `docs/plan-for-A.md` A1 section for the full list. Nothing actionable for C on this right now; it's on Guild's side. Will update this file as soon as there's a response.
 
 **Update (C, 2026-10-09, from A's plan 318db4c):** The Guild hang is resolved. Guild's message accept takes 30–60 s and the CLI blocks before polling. A real `ping` tool call has been confirmed in session `01a1225a-…`. The other Q8 accounts (Senso, ElevenLabs, Pi, Akash) are still open.
+
+**Update (C, 2026-10-09):** Senso is done: org `Hackathon-antibody`, with repair guidance (Q11) and shared team context (Q12). ElevenLabs, Pi, and Akash deployment are still open.
 
 ## Resolved
 

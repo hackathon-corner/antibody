@@ -12,6 +12,7 @@ Status: PRD and folder structure in place. B1 target pin merged (Juice Shop `v20
 - [Builder A implementation plan and checklist](docs/plan-for-A.md)
 - [Vendor setup checklist](docs/vendor-setup/README.md)
 - [Repository structure](docs/STRUCTURE.md)
+- Shared team context in Senso (org `Hackathon-antibody`, folder `shared-context`): the project summary and every resolved decision from [collab.md](docs/collab.md), retrievable by any teammate's agent after `senso login`. See collab Q12.
 
 A owns agent/repair; B owns target, independent verification, and deployment; C owns evidence, UI, and additional sponsor integrations. Names will be assigned by the team.
 
