@@ -1,0 +1,27 @@
+{
+  "targetId": "juice-shop-v20.2.0",
+  "recordedAgainst": "Upstream v20.2.0 release package (commit 5658473cf8814459bf89000ce373b20ed0b4eb37), fresh start, 2026-10-09",
+  "productKeys": ["createdAt", "deletedAt", "deluxePrice", "description", "id", "image", "name", "price", "updatedAt"],
+  "ordinaryQueries": [
+    { "q": "apple", "ids": [1, 24, 47] },
+    { "q": "banana", "ids": [6] },
+    { "q": "lemon", "ids": [5] },
+    { "q": "raspberry", "ids": [45, 4] },
+    { "q": "juice", "ids": [1, 6, 51, 42, 30, 50, 3, 25, 49, 41, 5, 48, 38, 8, 43, 34, 37, 19, 13, 45, 26, 14, 18, 15, 16, 7, 17, 20, 2, 47, 32, 23, 4, 55, 29] },
+    { "q": "", "ids": [1, 24, 6, 52, 51, 42, 53, 30, 50, 3, 54, 25, 49, 22, 41, 5, 33, 48, 38, 8, 43, 34, 37, 19, 13, 45, 26, 14, 18, 15, 16, 7, 17, 20, 9, 36, 35, 2, 47, 56, 32, 23, 4, 55, 29, 21] }
+  ],
+  "edgeCases": [
+    { "id": "quote", "q": "O'Reilly", "candidate": { "status": 200, "ids": [] }, "baselineObserved": "HTTP 500 (the selected defect)" },
+    { "id": "double-quote", "q": "\"juice\"", "candidate": { "status": 200, "ids": [] } },
+    { "id": "over-limit", "qRepeat": { "char": "a", "count": 250 }, "candidate": { "status": 200, "ids": [] } }
+  ],
+  "injection": {
+    "payload": "qwert')) UNION SELECT id, email, password, '4', '5', '6', '7', '8', '9' FROM Users--",
+    "note": "Union-based extraction of the Users table through the search query."
+  },
+  "accessBoundary": {
+    "endpoint": "/api/Users",
+    "unauthenticatedStatus": 401,
+    "authenticatedStatus": 200
+  }
+}

@@ -1,0 +1,157 @@
+# B2 spike (owner: B): pinned upstream source + one patch -> image -> HTTP -> independent checks + pinned scan.
+# Proves a modified source tree can be built and served. Public hosting is a separate step (no host credentials yet).
+name: build-target
+
+on:
+  push:
+    branches: [setup/pin-scan-baseline-spike]
+    paths:
+      - .github/workflows/build-target.yml
+      - infra/containers/patches/**
+      - config/targets/juice-shop.json
+      - tests/e2e/**
+      - tests/fixtures/juice-shop/**
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: Patch file name under infra/containers/patches/
+        default: spike-marker.patch
+      check_mode:
+        description: baseline or candidate
+        default: baseline
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-target-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      IMAGE: ghcr.io/hackathon-corner/antibody-target
+      PATCH_NAME: ${{ inputs.patch || 'spike-marker.patch' }}
+      CHECK_MODE: ${{ inputs.check_mode || 'baseline' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: antibody
+
+      - name: Resolve pinned target
+        id: pin
+        run: |
+          case "$PATCH_NAME" in */*|..*|"") echo "patch name must be a bare file name" >&2; exit 1;; esac
+          test -f "antibody/infra/containers/patches/$PATCH_NAME"
+          case "$CHECK_MODE" in baseline|candidate) ;; *) echo "bad check_mode" >&2; exit 1;; esac
+          echo "commit=$(jq -r .commit antibody/config/targets/juice-shop.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: juice-shop/juice-shop
+          ref: ${{ steps.pin.outputs.commit }}
+          path: target
+          persist-credentials: false
+
+      - name: Apply patch and record source identity
+        id: src
+        run: |
+          cd target
+          test "$(git rev-parse HEAD)" = "${{ steps.pin.outputs.commit }}"
+          git apply --whitespace=nowarn "../antibody/infra/containers/patches/$PATCH_NAME"
+          git add -A
+          echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
+          echo "patch_sha256=$(sha256sum "../antibody/infra/containers/patches/$PATCH_NAME" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          git diff --cached --stat
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: target
+          file: target/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:tree-${{ steps.src.outputs.tree }}
+          build-args: |
+            VCS_REF=${{ steps.pin.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/hackathon-corner/antibody
+            dev.antibody.upstream-commit=${{ steps.pin.outputs.commit }}
+            dev.antibody.source-tree=${{ steps.src.outputs.tree }}
+            dev.antibody.patch-sha256=${{ steps.src.outputs.patch_sha256 }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run image by digest
+        run: |
+          docker run -d --name target -p 3000:3000 "$IMAGE@${{ steps.build.outputs.digest }}"
+          for i in $(seq 1 90); do
+            curl -sf -o /dev/null http://localhost:3000/rest/admin/application-version && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/rest/admin/application-version
+          curl -sf http://localhost:3000/rest/admin/application-configuration | jq -r .config.application.name | tee app-name.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Independent checks
+        id: checks
+        run: |
+          set +e
+          node antibody/tests/e2e/juice-shop-checks.mjs --base-url http://localhost:3000 --mode "$CHECK_MODE" --out checks.json > /dev/null
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          jq -c '.overall, (.results[] | {checkId, outcome})' checks.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pinned Semgrep scan
+        run: |
+          pip install --quiet "semgrep==$(jq -r .semgrepVersion antibody/config/semgrep/rules.lock.json)"
+          bash antibody/scripts/semgrep-scan.sh target semgrep.json | tee semgrep-summary.json
+
+      - name: Build record
+        run: |
+          jq -n \
+            --arg commit "${{ steps.pin.outputs.commit }}" \
+            --arg tree "${{ steps.src.outputs.tree }}" \
+            --arg patch "$PATCH_NAME" \
+            --arg patchSha "${{ steps.src.outputs.patch_sha256 }}" \
+            --arg image "$IMAGE@${{ steps.build.outputs.digest }}" \
+            --arg appName "$(cat app-name.txt)" \
+            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --slurpfile checks checks.json \
+            --slurpfile semgrep semgrep-summary.json \
+            '{upstreamCommit: $commit, sourceTree: $tree, patch: $patch, patchSha256: $patchSha, image: $image,
+              servedApplicationName: $appName, checks: {mode: $checks[0].mode, overall: $checks[0].overall, suiteSha256: $checks[0].suite.sha256},
+              semgrep: $semgrep[0], workflowRun: $run}' | tee build-record.json
+          docker logs target > target.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-target-${{ github.run_id }}
+          path: |
+            build-record.json
+            checks.json
+            semgrep.json
+            target.log
+
+      - name: Fail on check result
+        if: steps.checks.outputs.exit != '0'
+        run: exit 1
