@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/build-target.yml
       - infra/containers/patches/**
+      - infra/containers/build-fixes/**
       - config/targets/juice-shop.json
       - tests/e2e/**
       - tests/fixtures/juice-shop/**
@@ -61,6 +62,10 @@ jobs:
         run: |
           cd target
           test "$(git rev-parse HEAD)" = "${{ steps.pin.outputs.commit }}"
+          # Host-owned build fixes first (upstream has no lockfile; see infra/containers/README.md).
+          for f in ../antibody/infra/containers/build-fixes/*.patch; do git apply --whitespace=nowarn "$f"; done
+          git add -A
+          echo "build_base_tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
           git apply --whitespace=nowarn "../antibody/infra/containers/patches/$PATCH_NAME"
           git add -A
           echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
@@ -89,6 +94,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/hackathon-corner/antibody
             dev.antibody.upstream-commit=${{ steps.pin.outputs.commit }}
+            dev.antibody.build-base-tree=${{ steps.src.outputs.build_base_tree }}
             dev.antibody.source-tree=${{ steps.src.outputs.tree }}
             dev.antibody.patch-sha256=${{ steps.src.outputs.patch_sha256 }}
           cache-from: type=gha
@@ -130,6 +136,7 @@ jobs:
           jq -n \
             --arg commit "${{ steps.pin.outputs.commit }}" \
             --arg tree "${{ steps.src.outputs.tree }}" \
+            --arg buildBase "${{ steps.src.outputs.build_base_tree }}" \
             --arg patch "$PATCH_NAME" \
             --arg patchSha "${{ steps.src.outputs.patch_sha256 }}" \
             --arg image "$IMAGE@${{ steps.build.outputs.digest }}" \
@@ -137,7 +144,7 @@ jobs:
             --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --slurpfile checks checks.json \
             --slurpfile semgrep semgrep-summary.json \
-            '{upstreamCommit: $commit, sourceTree: $tree, patch: $patch, patchSha256: $patchSha, image: $image,
+            '{upstreamCommit: $commit, sourceTree: $tree, buildBaseTree: $buildBase, patch: $patch, patchSha256: $patchSha, image: $image,
               servedApplicationName: $appName, checks: {mode: $checks[0].mode, overall: $checks[0].overall, suiteSha256: $checks[0].suite.sha256},
               semgrep: $semgrep[0], workflowRun: $run}' | tee build-record.json
           docker logs target > target.log 2>&1 || true
