@@ -86,12 +86,12 @@ Suite written by C in the spike; B owns it from here.
 
 - [x] Independent change-scope check: only `routes/search.ts`, rejected before build; also catches deletes, renames and binary patches (`src/adapters/check_worker.py`, unit-tested)
 - [x] Builds the candidate with an allowlisted environment (no secrets), runs it on a per-check `--internal` Docker network with CPU, memory, pid limits and dropped capabilities; build and suite have timeouts. (The build itself needs network to fetch the pinned source and npm packages.)
-- [x] Runs the B3 suite in candidate mode (suite mounted read-only from the host checkout); emits `CheckResult` tied to candidate hash, image ID and suite hash. Observed 2026-10-09 on an operator-supplied parameterized-query repair (not model output): all 5 required checks pass, image `sha256:02a8df7b…`, suite `2d7e0519…` (Windows CRLF checkout; see note below)
+- [x] Runs the B3 suite in candidate mode (suite mounted read-only from the host checkout); emits `CheckResult` tied to candidate hash, image ID and suite hash. Observed 2026-10-09 on an operator-supplied parameterized-query repair (not model output): all 5 required checks pass, image `sha256:02a8df7b…`, suite `2d7e0519…` (from the CRLF checkout, before the LF pin below; the same suite now hashes `be833ec4…`)
 - [x] An error or unknown result blocks release: timeouts, unparseable output, suite-hash or mode mismatch, exit/overall disagreement and a target that never starts are `ERROR`; `build_candidate` refuses anything without a passing record (unit-tested)
 - [x] Entry points match the runner's `build_candidate(Candidate) -> str` and A's `run_checks(Candidate) -> tuple[CheckResult, ...]` (`load_worker()`)
 - [ ] A wires `load_worker().run_checks` into `RepairAgent`, and C passes `build_candidate` to `HostRunner.execute`
 - [ ] Negative control through the worker: the `WHERE 1=0` mutant is rejected
-- [ ] Suite hash is line-ending dependent: Windows checkouts get CRLF, CI gets LF, so the same suite hashes differently. Pin `tests/e2e/**` and `tests/fixtures/**` to `eol=lf` in `.gitattributes`
+- [x] Suite hash no longer depends on line endings: `tests/e2e/**` and `tests/fixtures/**` pinned to `eol=lf` in `.gitattributes`. Windows now hashes the suite as `be833ec4…`, matching CI run 37983610899
 
 ## B5. Fixed deployment connector and external verification
 

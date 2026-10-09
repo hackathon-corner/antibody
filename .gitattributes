@@ -2,3 +2,6 @@
 *.patch text eol=lf
 *.sh text eol=lf
 Dockerfile text eol=lf
+# The independent check suite is hashed byte-for-byte (suite_hash); keep it identical on every OS.
+tests/e2e/** text eol=lf
+tests/fixtures/** text eol=lf
