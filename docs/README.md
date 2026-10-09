@@ -5,3 +5,4 @@
 - [Repository structure](STRUCTURE.md)
 - [Architecture decisions](decisions/README.md)
 - [Builder B checklist](tasks/B-checklist.md)
+- [Collaboration questions and answers](collab.md)
