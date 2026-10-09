@@ -7,6 +7,7 @@ secrets -- only the credentials needed for their own provider call.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
 
 from contracts import Candidate, CheckResult
@@ -28,10 +29,17 @@ class PatchAdapter(Protocol):
         run_id: str,
         base_commit: str,
         finding: CheckResult,
+        source_files: Mapping[str, str],
         guidance_ids: tuple[str, ...] = (),
         attempt_number: int = 1,
     ) -> Candidate:
-        """Return a candidate with content_hash left unset -- the host computes it."""
+        """Return a candidate with content_hash left unset -- the host computes it.
+
+        source_files maps allowed repo-relative path -> full file content at
+        base_commit. This is the agent's entire view of the repo -- it
+        receives no filesystem or network access, so anything not in this
+        map (e.g. data/static/codefixes/) is simply never in its context.
+        """
         ...
 
 

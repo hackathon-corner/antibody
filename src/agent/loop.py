@@ -9,7 +9,7 @@ what the agent requests.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Protocol
 
@@ -46,15 +46,20 @@ class RepairAgent:
         patch_adapter: PatchAdapter,
         validator: CandidateValidator,
         run_checks: Callable[[Candidate], tuple[CheckResult, ...]],
+        source_files: Mapping[str, str],
         event_sink: EventSink | None = None,
     ) -> None:
         """run_checks is B's isolated worker entry point (B4); it returns
-        the actual CheckResult set for a validated candidate hash."""
+        the actual CheckResult set for a validated candidate hash.
+
+        source_files maps allowed path -> content at base_commit; it's the
+        agent's entire view of the repo (see PatchAdapter.propose)."""
         self._run_id = run_id
         self._base_commit = base_commit
         self._patch_adapter = patch_adapter
         self._validator = validator
         self._run_checks = run_checks
+        self._source_files = source_files
         self._event_sink = event_sink or _NullEventSink()
         self._last_passing: Candidate | None = None
         self._last_passing_hash: str | None = None
@@ -85,6 +90,7 @@ class RepairAgent:
                 run_id=self._run_id,
                 base_commit=self._base_commit,
                 finding=finding,
+                source_files=self._source_files,
                 guidance_ids=guidance_ids,
                 attempt_number=attempt,
             )

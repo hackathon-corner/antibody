@@ -37,8 +37,8 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 
 - [x] `SemgrepAdapter`: real CLI wrapper, JSON parse, maps rule matches → `CheckResult` — `src/adapters/semgrep.py`
 - [x] B1 merged to `main` — pinned commit/path available: `routes/search.ts` at `5658473cf8814459bf89000ce373b20ed0b4eb37`
-- [ ] ⏳ BLOCKED ON `setup/pin-scan-baseline-spike` reconciliation — the pinned Semgrep registry rule (`config/semgrep/rules.lock.json`) only exists on that stale branch. Note: it uses a registry rule ID (`javascript.sequelize.security.audit...`, fetched by SHA-256 at scan time), not a local `--config <path>` rule file like `SemgrepAdapter` currently assumes — adapter needs a small update once this lands.
-- [ ] Capture one real baseline JSON finding (file, line, rule ID) as evidence artifact
+- [x] `scripts/semgrep-scan.sh`/`config/semgrep/rules.lock.json` merged to `main` (PR #1). Fixed Q10 bug: `SemgrepAdapter` now matches `check_id` by suffix, not exact equality.
+- [x] Capture one real baseline JSON finding — done with real pinned source (`python scripts/target.py source --out runtime/source`) and real Semgrep 1.180.0: one finding at `routes/search.ts:23`, 0 errors. Confirmed with both the shell script and the Python adapter independently.
 - [x] Guild account: workspace created (`antibody-dev`, `01a1224a-2310-3bb9-0000-99807e6c2ff8`), CLI installed and authenticated as `g3ram`
 - [x] Guild: agent created (`antibody-repair-agent`, `01a12248-138c-726e-0000-1fcb7df24304`), one zero-dependency `ping` tool connected (no network/credentials, to isolate the test from tool-side failures)
 - [x] Guild: confirm a real session invokes the tool and returns a real result. **Resolved** — root cause was slow (30-60s) message acceptance on Guild's side; the CLI blocks on that before polling, which looked like a hang. Session `01a1225a-e05d-f268-0000-402df81a76a8` actually completed: `ping` tool called, returned `{"echoed": "A1 proof of life", "timestamp": "2026-10-09T20:29:38.868Z"}`. Confirmed via `guild session events <id>`, not just CLI stdout.
@@ -46,12 +46,13 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 
 ## A3 — Scanner and patch-proposal tools
 
-- [x] `ScannerAdapter` / `PatchAdapter` / `GuidanceAdapter` Protocol boundaries — `src/adapters/base.py`
-- [x] `GuildPatchAdapter` stub — raises `GuildNotConfiguredError`/`NotImplementedError` rather than fabricating a candidate
-- [ ] ⏳ BLOCKED ON A1 — wire real Guild session into `GuildPatchAdapter.propose()`
-- [ ] Confirm Guild's actual output format (diff vs full-file) and adjust `CandidateValidator.changed_paths()` regex if needed
-- [ ] Exclude `data/static/codefixes/` (upstream reference answer files) from whatever source context gets assembled for the Guild agent (agreed with C in `docs/collab.md` Q4) — do this in the same pass as wiring the real session
-- [ ] End-to-end: real Semgrep finding → real Guild candidate → validator accepts/rejects
+- [x] `ScannerAdapter` / `PatchAdapter` / `GuidanceAdapter` Protocol boundaries — `src/adapters/base.py`. `PatchAdapter.propose` extended with `source_files: Mapping[str, str]` (path -> content at base_commit); this is the agent's entire view of the repo, so excluding `data/static/codefixes/` is automatic — it's simply never in the map (resolves `docs/collab.md` Q4, no separate filter step needed).
+- [x] `GuildPatchAdapter` implemented for real — `src/adapters/guild.py`. Works around a real Guild CLI quirk: `guild agent chat`/`test` block synchronously waiting for a reply, but message-accept takes 30-60s and the backend's `session events` endpoint has intermittent connection errors. The adapter launches `guild agent chat` only to capture the printed session ID, terminates that process, then polls `guild session events --events all` independently with its own timeout/retry loop (transient `subprocess.TimeoutExpired` on one poll is retried, not fatal). Extracts the diff from a ` ```diff ` fence in the agent's final message.
+- [x] Agent rewritten (`guild-agents/antibody-repair-agent/agent.ts`): structured `inputSchema` (filePath, fileContent, baseCommit, defectSummary, defectLine, guidance), strict system prompt requiring a single unified-diff code block, no tools (pure text generation from supplied content — agent has no filesystem/network access of its own).
+- [x] 15 unit tests (`tests/unit/test_guild_adapter.py`): end-to-end diff extraction, session-ID-not-found, no-diff-fence response, full timeout, multi-file-not-supported, transient-poll-retry regression, `_extract_line` parsing. All passing.
+- [x] **Live end-to-end run against the real pinned defect, 2026-10-09 ~21:13 UTC**: real Semgrep finding (`routes/search.ts:23`) → real Guild session → real generated diff (parameterized the `sequelize.query` call via named `replacements` instead of string interpolation) → `CandidateValidator.validate()` accepted it, computed hash `7d235cee...`. Confirms the whole A1→A3→A4 chain works with a real candidate.
+- [x] Confirm Guild's actual output format — confirmed: fenced ` ```diff ` block with `--- a/<path>` / `+++ b/<path>` headers, matches `CandidateValidator.changed_paths()` as-is, no regex change needed.
+- [ ] Note: a second live run hit a sustained Guild backend issue (`session events` erroring repeatedly) and correctly raised `GuildSessionTimeoutError` after its 300s budget — no crash, no fabricated result, exactly the intended behavior. Worth flagging to Guild support as a second, separate issue from the accept-latency one.
 
 ## A5 — Connect B's verification response to bounded agent revision
 
@@ -88,5 +89,9 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 3. ~~Write the A4 unit tests~~ — done, 9 cases passing.
 4. ~~Resolve the two contract change requests from B~~ — done, applied to `src/contracts/models.py` (see `docs/collab.md` Q7).
 5. ~~Guild session proof~~ — done (see above).
-6. Once `setup/pin-scan-baseline-spike` reconciles: point `SemgrepAdapter` at the real pinned Semgrep rule, capture the finding artifact.
-7. Wire `GuildPatchAdapter` for real (A3): replace the stub's raise with an actual `guild session create`/`guild session send` call (accounting for the 30-60s accept latency — don't block synchronously on it the way the CLI does; poll `guild session events` instead), exclude `data/static/codefixes/` from its source context, replace the fake adapter in a real end-to-end run.
+6. ~~Semgrep rule pin~~ — done, PR #1 merged, real finding captured.
+7. ~~Wire `GuildPatchAdapter` for real~~ — done, live end-to-end run succeeded with a real validated candidate.
+8. A5: wire a real `run_checks` callable once B4's worker exists (currently only smoke-tested with a fake).
+9. A6: wire a real deploy connector call once B5 exists (currently only smoke-tested).
+10. Flag the second Guild issue (sustained `session events` errors) to support, separate from the accept-latency one already resolved.
+11. Decide `Run.state` transition ownership with C (open item under "Cross-cutting").
