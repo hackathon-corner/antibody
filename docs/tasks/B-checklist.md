@@ -93,6 +93,8 @@ Suite written by C in the spike; B owns it from here.
 
 ## B5. Fixed deployment connector and external verification
 
+Progress (2026-10-09, not yet run against real Akash, so nothing below is ticked): `src/adapters/akash_deploy.py` (`load_connector()`) implements the first three items. It re-checks the worker's verification record, pushes the verified image to GHCR as `cand-<hash12>`, deploys by registry digest via the Akash Console API with read-only pull credentials from the environment, serializes through one coordinator row in `runtime/deploy/akash.sqlite`, and `reconcile()` resolves unfinished attempts from Akash's state without redeploying. 17 unit tests in `tests/unit/test_akash_deploy.py`. External probes still need wiring to `connector.endpoint()`.
+
 - [ ] `DeployConnector.deploy(request)` for `src/server/runner.py`: candidate hash and image digest only; no arbitrary host, URL, command or `latest` tag
 - [ ] Deployments serialized; durable state; reconciles with the host after a restart or timeout (the runner's `RunStore.claim_deploy` already records claims; the connector must reconcile with the host's actual state)
 - [ ] Emits `DeployResult`; acceptance by the host is not treated as proof the image is serving

@@ -40,5 +40,11 @@
     "md5": "e8b979a105885370df9647b0c06166da",
     "sha256": "afd4d0749283810f16cc939da38333f27195f8e116832bb64992f88462acba80"
   },
+  "deploy": {
+    "registry_repo": "ghcr.io/hackathon-corner/antibody-target",
+    "sdl_template": "infra/akash/juice-shop.sdl.template.yaml",
+    "service": "juice-shop",
+    "note": "Fixed deploy target for src/adapters/akash_deploy.py. Images are pushed as cand-<hash12> and deployed by registry digest only."
+  },
   "public_endpoint": { "status": "pending", "note": "No hosting credentials provisioned yet." }
 }
