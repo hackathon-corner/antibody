@@ -1,0 +1,23 @@
+{
+  "target_id": "juice-shop",
+  "description": "Team-owned deployment of OWASP Juice Shop with its bundled synthetic seed data.",
+  "license": "MIT",
+  "attribution": "OWASP Juice Shop, Copyright (c) 2014-2026 Bjoern Kimminich & the OWASP Juice Shop contributors",
+  "source": {
+    "upstream_repo": "https://github.com/juice-shop/juice-shop.git",
+    "repo": "https://github.com/juice-shop/juice-shop.git",
+    "release_tag": "v20.2.0",
+    "commit": "5658473cf8814459bf89000ce373b20ed0b4eb37",
+    "note": "repo will point at the team fork once it exists; the commit must stay identical."
+  },
+  "allowed_paths": ["routes/search.ts"],
+  "base_images": {
+    "git": "alpine/git:2.47.2@sha256:062a01ad7a0eb17cff382bc5e26086b4d710e56dfdfdf001109a49b6d9bd378c",
+    "build": "node:24@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0",
+    "runtime": "gcr.io/distroless/nodejs24-debian13@sha256:96df910f65fdd8a21d00d14d4cc046adcfcf3ced2d5e96be4b39ebde9f4866c6"
+  },
+  "dockerfile": "infra/containers/juice-shop/Dockerfile",
+  "container_port": 3000,
+  "search_path": "/rest/products/search",
+  "baseline_image_digest": null
+}
