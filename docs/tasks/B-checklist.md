@@ -4,12 +4,12 @@ Owner: B. Task IDs and "done when" criteria come from [PRD §8](../PRD.md#builde
 
 Stack: Python 3.11+ (stdlib first) for B's Python code, Docker for target builds. The independent check suite is Node with no dependencies (`tests/e2e/juice-shop-checks.mjs`; see Q5 in [collab.md](../collab.md)). Juice Shop stays Node inside its container.
 
-## Status (updated 2026-10-09, at `c29b691`)
+## Status (updated 2026-10-09, at `54cbd3a`)
 
 | Task | State | Blocking |
 |---|---|---|
-| B1 | Pins done; Docker now works locally; baseline image not yet built, digest not recorded | Nothing. Next action. |
-| B2 | Modified source builds and pushes to GHCR in CI; not public | Public host choice and pull access (Q6) |
+| B1 | Baseline built from source, local image ID recorded, smoke and injection reproduced | Confirm seed data; `targetId` naming |
+| B2 | Spike image in GHCR (private); Akash chosen; SDL rendered for the spike digest | C deploys with GHCR credentials and sends the lease URL; B probes |
 | B3 | Suite and expectations written and verified against the upstream release package | Re-observe on the source-built baseline; record the suite hash |
 | B4 | Worker written and verified end-to-end on a supplied repair (`src/adapters/check_worker.py`) | A wires `run_checks`; negative control through the worker still to run |
 | B5 | Not started | B2, B4. A6 waits on this. |
@@ -20,20 +20,19 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 
 ## Next actions (in order)
 
-1. `python scripts/target.py build` for the baseline (now applies `build-fixes/` like CI). Record `baseline_image_digest`; `run` + `smoke`; run the suite in baseline mode against it. Closes B1.
-2. Answer Q5 and Q6 in [collab.md](../collab.md): keep the `.mjs` suite (recommended), pick the public host, choose the image pull method (read-only token preferred over a public package).
-3. Build B4 around `juice-shop-checks.mjs`, emitting `CheckResult` with `image_digest` and `suite_hash`, so A can run real candidates.
-4. Deploy a source-built digest to the public host and fetch it from outside. Closes B2.
-5. Implement `DeployConnector.deploy(request)` for `src/server/runner.py` (B5).
+1. B2: C deploys `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` from the Akash Console with GHCR credentials attached (`read:packages` token, never committed). With the lease URL, run `python scripts/probe_public.py --url <lease URL> --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref sha256:2b20151b…` from outside the lease and record the output here. Closes B2.
+2. Run the suite in baseline mode against the source-built baseline (B3), and answer Q5 (keep the `.mjs` suite, recommended).
+3. Implement `DeployConnector.deploy(request)` for `src/server/runner.py` (B5). The image must be pullable with the same registry credentials.
+4. Negative control through the worker: the `WHERE 1=0` mutant (B4/B6).
 
 ## 0. Workstation and access
 
 - [x] Python 3.11+ installed (3.12.10 via winget, 2026-10-09). Open a new shell so it's on PATH.
 - [x] Docker Desktop installed and running (engine 29.8.1 on WSL2, verified 2026-10-09)
-- [ ] Public host chosen: Akash or a fallback we're authorized to use (Q6)
+- [x] Public host chosen: Akash, from C's console account (Q6, 2026-10-09)
 - [x] Container registry push from CI: `build-target` pushes to `ghcr.io/hackathon-corner/antibody-target` (private) with the workflow token
 - [ ] Registry push from B's machine, if local builds are to be deployed (otherwise deploy CI-built digests)
-- [ ] Registry pull access for the public host (read-only token) (Q6)
+- [ ] Registry pull access for the public host (Q6). A public package isn't possible: the org disallows public packages ("Public" greyed out; API reports both packages `private`, anonymous pull 401, 2026-10-09). GHCR credentials attached in the Akash Console (B, 2026-10-09), token `read:packages` only. Tick when a lease has actually pulled the image.
 - [ ] Team fork of Juice Shop. Decision 0002 says no fork is needed for the build path; decide whether to keep this item. If kept: `source.repo` updated, commit unchanged.
 
 ## B1. Pin source/image, start target, synthetic baseline data
@@ -63,7 +62,8 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 ## B2. Prove rebuilt-image public deployment (target: first ~40 min)
 
 - [x] Build with a trivial harmless patch and push it to the registry: `spike-marker.patch` via `build-target`, image `ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b193d5c9800892992f7e3f93d40c91811bd1602a8f6428ad8020668a8` ( [run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899))
-- [ ] Deploy that digest to the public host; definition goes in `infra/akash/` or `infra/containers/`
+- [x] Deployment definition: `infra/akash/juice-shop.sdl.template.yaml`, rendered for the spike digest to `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` (2026-10-09)
+- [ ] Deploy that digest to Akash (C's console, with GHCR credentials); record lease ID and URL
 - [ ] External HTTP fetch, from outside this machine, shows the rebuilt image serving search (the marker app name is visible)
 - [ ] If Juice Shop can't be deployed promptly: escalate per PRD §9 (smaller attributed target, disclosed)
 

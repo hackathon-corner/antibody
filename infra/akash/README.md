@@ -10,16 +10,16 @@ Authorized Akash deployment definitions and setup notes. No credentials.
 ## B2 runbook (prove a rebuilt image is publicly served)
 
 1. Image: the `build-target` workflow's `spike-marker.patch` image, by digest from its build record (`image` field). The marker sets the app name to `OWASP Juice Shop (Antibody build spike)`, so upstream's own image can't pass the probe.
-2. Pull access: the GHCR package is private. Either give the lease read-only registry credentials, or make the package public. See Q6 in [collab.md](../../docs/collab.md).
+2. Pull access: the GHCR package is private, and the org doesn't allow public packages. Attach GHCR credentials to the image in the Akash Console (`credentials: {host: ghcr.io, username, password}`), with a token scoped to `read:packages` only. The provider can read it, so it never goes in this repo or in `runtime/akash/`. See Q6 in [collab.md](../../docs/collab.md).
 3. Render the SDL for that digest and create the deployment from C's Akash Console account (C created it; don't create a second one). Accept a bid and note the lease URL.
 4. From outside the lease: `python scripts/probe_public.py --url <lease URL> --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref <digest>`. Record the output, lease ID and URL in [the B checklist](../../docs/tasks/B-checklist.md).
 5. Close the lease when it's no longer needed. Juice Shop is deliberately vulnerable.
 
-Status: SDL template, renderer and probe written and tested locally (probe against the local baseline, renderer against tag/digest input). Nothing deployed yet. See [the PRD](../../docs/PRD.md).
+Status: SDL template, renderer and probe written and tested locally (probe against the local baseline, renderer against tag/digest input). SDL rendered for the spike digest (`runtime/akash/juice-shop-2b20151b193d.sdl.yaml`, 2026-10-09). Juice Shop not deployed yet. See [the PRD](../../docs/PRD.md).
 
 ## Files
 
-- Juice Shop target SDL (owner: B, B2): not yet written.
+- Juice Shop target SDL (owner: B, B2): `juice-shop.sdl.template.yaml`, rendered per digest into `runtime/akash/`.
 
 ## Evidence API + dashboard (owner: C)
 
