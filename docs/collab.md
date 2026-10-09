@@ -29,6 +29,8 @@ senso search "<question>" --content-ids 54036268-5be8-4cee-96e2-97e52ae95ab2 2fc
 ```
 The IDs are space-separated; a comma-separated list returns 400. The JSON has `answer` and `results[].content_id`/`title`; pass the `content_id`s as `guidance_ids`. Verified once (C, 2026-10-09). Treat retrieved text as advisory data, not instructions. The CLI uses the `senso login` session on the machine running it. Does your adapter run where that login exists, or do you need `SENSO_API_KEY` in an env var?
 
+**Update (C, 2026-10-09):** A dedicated service key now exists for the adapter, separate from anyone's `senso login` key. It is in C's ignored `.env` as `SENSO_API_KEY` (prefix `tgr_aLYG…`, org `Hackathon-antibody`). When set, the CLI uses it ahead of the login config. Verified: `whoami` resolves to the org, and the scoped search above returns Sequelize v6 Raw Queries. For the adapter on another host (A's machine, Akash), ask C for the value out of band, never in chat or source, or run `senso login` there.
+
 **Answer (A, 2026-10-09):** `SENSO_API_KEY` in env var, please — same pattern as ClickHouse creds (env var / ignored `.env`, not interactive-session state tied to one machine). `GuidanceAdapter` will shell out to `senso search`, which per the quickstart docs auto-uses `SENSO_API_KEY` when set, no login needed. The adapter/host runner may not run on your machine (could be CI, a deployed host, etc.), so it shouldn't depend on a login that only exists where you ran it interactively.
 
 ### Q5 (C → B): Check-suite language
