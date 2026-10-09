@@ -9,7 +9,7 @@ Stack: Python 3.11+ (stdlib first) for B's Python code, Docker for target builds
 | Task | State | Blocking |
 |---|---|---|
 | B1 | Baseline built from source, local image ID recorded, smoke and injection reproduced | Confirm seed data; `targetId` naming |
-| B2 | Spike image in GHCR (now public, anonymous pull confirmed 200); Akash chosen; SDL rendered for the spike digest; lease created but returning 404 | Diagnose the lease (image pull vs container start vs ingress) via Akash console Events/Logs, then re-probe |
+| B2 | **Done (2026-10-09).** Spike image served publicly on Akash at https://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so ; external probe passed | Close the lease when not needed (deliberately vulnerable) |
 | B3 | Suite and expectations written and verified against the upstream release package | Re-observe on the source-built baseline; record the suite hash |
 | B4 | Worker written and verified end-to-end on a supplied repair (`src/adapters/check_worker.py`) | A wires `run_checks`; negative control through the worker still to run |
 | B5 | Not started | B2, B4. A6 waits on this. |
@@ -20,7 +20,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 
 ## Next actions (in order)
 
-1. **B2 status (C, 2026-10-09 22:15 UTC):** Juice Shop lease created from C's console with `runtime/akash/juice-shop-2b20151b193d.sdl.yaml`: http://2miicioqlpc819lmuamul59oqg.ingress.froggy-servers.com . `probe_public.py` run from outside at 22:11 UTC **failed**: both probes 404, served by the provider's nginx (no route to the app), still 404 after polling 4 min. Not yet known whether the image pull, the container start, or the ingress is the problem; next step is the lease's Events/Logs in the Akash console. Once it serves, re-run from outside: `python scripts/probe_public.py --url <lease URL> --mode baseline --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref sha256:2b20151b…` (`baseline`: the spike is unrepaired, so the injection must reproduce) and record the output here. Closes B2.
+1. **B2 done (C, 2026-10-09 22:46 UTC):** Juice Shop spike lease https://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (Akash, digitalfrontier provider, deployed from C's console with `runtime/akash/juice-shop-2b20151b193d.sdl.yaml`). `probe_public.py --mode baseline` from outside, 2026-10-09 22:45:52–22:45:58 UTC, exit 0: `public.app-name` 200 = `OWASP Juice Shop (Antibody build spike)`; `public.search-ordinary.{apple,banana,lemon,raspberry,juice,empty}` all 200 with fixture IDs matching; `public.injection` 200, reproduces (24 rows, all credential-shaped), as expected for the unrepaired baseline; `public.search-quote` 500 (not required). Two earlier leases (`froggy-servers.com`, then `cpu.aesservices.net`) ran the container (`Server listening on port 3000`) but their nginx ingress never routed our hostname (a made-up hostname on the same provider gave the identical 404); both closed. The digitalfrontier provider, which also hosts the evidence API, routed on the first try.
 2. B5 first real run: set `AKASH_API_KEY` (C's Console account) and `docker login ghcr.io` (write:packages), deploy a passing candidate with `load_connector().deploy(...)`, then `observe(attempt_id)`. Confirms whether the Console API reports service URIs.
 
 ## 0. Workstation and access
@@ -30,7 +30,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 - [x] Public host chosen: Akash, from C's console account (Q6, 2026-10-09)
 - [x] Container registry push from CI: `build-target` pushes to `ghcr.io/hackathon-corner/antibody-target` (private) with the workflow token
 - [ ] Registry push from the host machine: **needed**, because the B5 connector pushes the locally verified image (`cand-<hash12>`) and deploys it by registry digest. Run `docker login ghcr.io` with a token that has `write:packages` (Docker keeps it in its credential store, never in this repo). Not done: Docker on B's machine has no `ghcr.io` login (2026-10-09). Tick after the first successful connector push
-- [ ] Registry pull access for the public host (Q6). Both packages are now public (API reports `public`, anonymous pull token 200, rechecked by B 2026-10-09 after A's note), so no pull credentials are needed. **Update (C, 2026-10-09 22:15 UTC):** `antibody-target` is pullable anonymously (manifest for `sha256:2b20151b…` returns 200 without credentials), so the Juice Shop lease was created with no registry credentials. Tick when a lease has actually pulled the image.
+- [x] Registry pull access for the public host (Q6). Both packages are now public (API reports `public`, anonymous pull token 200, rechecked by B 2026-10-09 after A's note), so no pull credentials are needed. **Update (C, 2026-10-09 22:15 UTC):** `antibody-target` is pullable anonymously (manifest for `sha256:2b20151b…` returns 200 without credentials), so the Juice Shop lease was created with no registry credentials. Tick when a lease has actually pulled the image. Pulled anonymously by the Akash provider (event `Successfully pulled image …@sha256:2b20151b…`, 2026-10-09).
 - [x] Team fork of Juice Shop: **dropped** (B, 2026-10-09). Per decision 0002, builds fetch the pinned upstream commit and apply patches, so no fork is needed. `source.repo` stays upstream
 
 ## B1. Pin source/image, start target, synthetic baseline data
@@ -61,8 +61,8 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 
 - [x] Build with a trivial harmless patch and push it to the registry: `spike-marker.patch` via `build-target`, image `ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b193d5c9800892992f7e3f93d40c91811bd1602a8f6428ad8020668a8` ( [run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899))
 - [x] Deployment definition: `infra/akash/juice-shop.sdl.template.yaml`, rendered for the spike digest to `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` (2026-10-09)
-- [ ] Deploy that digest to Akash (C's console, with GHCR credentials); record lease ID and URL
-- [ ] External HTTP fetch, from outside this machine, shows the rebuilt image serving search (the marker app name is visible)
+- [x] Deploy that digest to Akash (C's console; package public, so no credentials): https://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (2026-10-09). Lease ID in the Akash console (not recorded here).
+- [x] External HTTP fetch, from outside this machine, shows the rebuilt image serving search (the marker app name is visible): `probe_public.py --mode baseline` from outside, 2026-10-09 22:45:52–22:45:58 UTC, exit 0: `public.app-name` 200 = `OWASP Juice Shop (Antibody build spike)`; `public.search-ordinary.{apple,banana,lemon,raspberry,juice,empty}` all 200 with fixture IDs matching; `public.injection` 200, reproduces (24 rows, all credential-shaped), as expected for the unrepaired baseline; `public.search-quote` 500 (not required).
 - [ ] If Juice Shop can't be deployed promptly: escalate per PRD §9 (smaller attributed target, disclosed)
 
 ## B3. Baseline exploit and functionality checks (before A's first candidate)
