@@ -1,0 +1,43 @@
+"""Adapter interfaces. Each provider gets a narrow, swappable boundary.
+
+An adapter returns real provider output or raises; it never fabricates a
+result to keep a run moving. Adapters hold no deploy/ClickHouse/host
+secrets -- only the credentials needed for their own provider call.
+"""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from contracts import Candidate, CheckResult
+
+
+class ScannerAdapter(Protocol):
+    """Runs a pinned static-analysis rule set against a source revision."""
+
+    def scan(self, source_path: str, rule_ids: tuple[str, ...]) -> tuple[CheckResult, ...]:
+        """Return one CheckResult per rule_id actually evaluated."""
+        ...
+
+
+class PatchAdapter(Protocol):
+    """Proposes a candidate patch via an agent runtime (e.g. Guild)."""
+
+    def propose(
+        self,
+        run_id: str,
+        base_commit: str,
+        finding: CheckResult,
+        guidance_ids: tuple[str, ...] = (),
+        attempt_number: int = 1,
+    ) -> Candidate:
+        """Return a candidate with content_hash left unset -- the host computes it."""
+        ...
+
+
+class GuidanceAdapter(Protocol):
+    """Retrieves source-linked remediation guidance (e.g. Senso)."""
+
+    def retrieve(self, query: str) -> tuple[str, ...]:
+        """Return guidance IDs/passages actually retrieved, not inferred."""
+        ...

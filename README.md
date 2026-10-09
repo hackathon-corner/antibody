@@ -4,7 +4,7 @@ An autonomous repair agent that closes a security hole without closing the busin
 
 Antibody will repair one SQL-injection defect in a team-owned OWASP Juice Shop deployment, run independent behavior checks, deploy the passing candidate to a public endpoint, and publish observed evidence.
 
-Status: PRD and folder structure in place. Shared contracts (`src/contracts/`) implemented and pending B/C review. No agent, vendor setup, repair, or deployment has been implemented or verified yet.
+Status: PRD and folder structure in place. Shared contracts (`src/contracts/`) implemented and pending B/C review. Host validation, bounded repair loop, and the Semgrep adapter (`src/agent/`, `src/adapters/`) are implemented and smoke-tested; the Guild patch adapter is an honest stub pending A1 (real agent session). No vendor deployment has been implemented or verified yet.
 
 ## Start here
 
