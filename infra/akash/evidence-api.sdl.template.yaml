@@ -1,0 +1,44 @@
+# Akash SDL for the evidence API + dashboard (C3). Owner: C.
+# Render with
+#   python scripts/render_evidence_sdl.py --image ghcr.io/hackathon-corner/antibody-evidence-api@sha256:<64 hex>
+# It refuses tags, fills the CLICKHOUSE_* values from the ignored .env (read-only user only),
+# and writes to the ignored runtime/akash/ directory. Never commit a rendered file.
+# The provider can read these env values, so the user must have SELECT on antibody.events and nothing else.
+---
+version: "2.0"
+services:
+  evidence-api:
+    image: "{{IMAGE}}"
+    env:
+      - "CLICKHOUSE_HOST={{CLICKHOUSE_HOST}}"
+      - "CLICKHOUSE_PORT={{CLICKHOUSE_PORT}}"
+      - "CLICKHOUSE_USER={{CLICKHOUSE_READER_USER}}"
+      - "CLICKHOUSE_PASSWORD={{CLICKHOUSE_READER_PASSWORD}}"
+      - "CLICKHOUSE_DATABASE={{CLICKHOUSE_DATABASE}}"
+      - "ANTIBODY_CORS_ORIGINS="
+    expose:
+      - port: 8000
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    evidence-api:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    akash:
+      pricing:
+        evidence-api:
+          denom: uakt
+          amount: 10000
+deployment:
+  evidence-api:
+    akash:
+      profile: evidence-api
+      count: 1

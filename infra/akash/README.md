@@ -21,3 +21,9 @@ Status: SDL template, renderer and probe written and tested locally (probe again
 
 - `evidence-api.yaml` (owner: C): evidence API + dashboard. Secrets are `<...>` placeholders filled in the Akash console only.
 - Juice Shop target SDL (owner: B, B2): not yet written.
+
+## Evidence API + dashboard (owner: C)
+
+- `evidence-api.sdl.template.yaml`: one service, port 8000 exposed as 80, 0.5 CPU, 512 MiB memory. Render with `python scripts/render_evidence_sdl.py --image ghcr.io/hackathon-corner/antibody-evidence-api@sha256:<digest>` (digest from the `build-evidence-api` workflow summary).
+- The SDL's env is readable by the Akash provider, so it carries a **read-only** ClickHouse user (`CLICKHOUSE_READER_USER`/`CLICKHOUSE_READER_PASSWORD` in `.env`, `SELECT` on `antibody.events` only). The renderer refuses the read-write app user and writes only to the ignored `runtime/akash/`.
+- Latest built image: `ghcr.io/hackathon-corner/antibody-evidence-api@sha256:4a10c0f4dd41ce18de3a3fcfff16b63e8105f78203262980621627730d88c29a` (smoke-tested in CI: serves the dashboard, `/api/health` is 503 without ClickHouse settings). Not deployed yet.
