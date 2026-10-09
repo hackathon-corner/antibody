@@ -9,7 +9,7 @@ Stack: Python 3.11+ (stdlib first) for B's Python code, Docker for target builds
 | Task | State | Blocking |
 |---|---|---|
 | B1 | Baseline built from source, local image ID recorded, smoke and injection reproduced | Confirm seed data; `targetId` naming |
-| B2 | Spike image in GHCR (private); Akash chosen; SDL rendered for the spike digest | C deploys with GHCR credentials and sends the lease URL; B probes |
+| B2 | Spike image in GHCR (now public, anonymous pull confirmed 200); Akash chosen; SDL rendered for the spike digest; lease created but returning 404 | Diagnose the lease (image pull vs container start vs ingress) via Akash console Events/Logs, then re-probe |
 | B3 | Suite and expectations written and verified against the upstream release package | Re-observe on the source-built baseline; record the suite hash |
 | B4 | Worker written and verified end-to-end on a supplied repair (`src/adapters/check_worker.py`) | A wires `run_checks`; negative control through the worker still to run |
 | B5 | Not started | B2, B4. A6 waits on this. |
