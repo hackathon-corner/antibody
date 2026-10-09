@@ -6,7 +6,7 @@ All entries are pending. Each owner records a redacted actual setup result and a
 |---|---|---|
 | Guild AI | A | Actual agent invokes a harmless tool and receives its result |
 | Semgrep | A | Real finding on the pinned source with confirmed rule ID |
-| ClickHouse | C | Real event inserted and queried |
+| ClickHouse | C | Real event inserted and queried — **done 2026-10-09.** ClickHouse Cloud service (26.6.1, GCP us-central1), database `antibody`, least-privilege user `antibody_app` (grants on `antibody.*` only). Table `antibody.events` created by `src/adapters/clickhouse_events.py`; 3 events from [build-target run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899) inserted and queried back, with re-insert deduplicated by `event_id`. Outcomes in that record are Actions step conclusions, not check verdicts. Credentials only in the ignored `.env`. |
 | Akash / fallback public host | B | Rebuilt target image is reachable by HTTP |
 | Senso | C, connected by A | Actual guidance retrieval with source references |
 | ElevenLabs | C | Spoken question invokes real read-only evidence API |
