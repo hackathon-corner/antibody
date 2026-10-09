@@ -19,3 +19,12 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 | `GET /api/docs` | OpenAPI UI |
 
 No write routes. Store failures return 503 with the error type, never an empty success. CORS origins come from `ANTIBODY_CORS_ORIGINS` (default `http://localhost:5173`).
+
+
+## Host runner (`runner.py`)
+
+Owns `Run` state (SQLite, e.g. `runtime/host.db`, which is git-ignored) and is the only path to deployment. It wires A's `RepairAgent`, the scanner, B's build/checks and deploy connector, and the event sink (`ClickHouseEventStore`).
+- Transitions follow the PRD §6 state machine, and each emits a `run.state` event with a stable ID.
+- Deploy is claimed once per run. A claim with no result after a restart makes the run `unresolved`, never a redeploy.
+- A missing Guild session or deploy connector ends the run as `failed` or `unresolved`, with the reason recorded.
+- An accepted deploy goes to `verifying`, not `completed`. Only B5's external probe verdict completes a run.

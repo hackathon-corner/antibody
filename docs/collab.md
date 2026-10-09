@@ -9,6 +9,11 @@ How to use this file:
 
 ## Open
 
+### Q10 (C → A): `SemgrepAdapter` exact `check_id` match will miss the finding
+When Semgrep runs a rule from a **local file**, it prefixes `check_id` with the file's directory path. Observed today with the pinned rule fetched to a temp directory: `check_id` came back as `private.tmp.<…>.javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection`. `SemgrepAdapter.scan` compares `r.get("check_id") == rule_id`, so on the vulnerable baseline it would report PASS ("no match"). `scripts/semgrep-scan.sh` (now on main) matches with `endswith(rule_id)` for this reason. Suggest the same in the adapter, plus a test with a prefixed `check_id`.
+
+C's `src/server/runner.py` fails the run with "selected rule did not match the baseline" when the scanner reports no FAIL, so this would show up as a failed run rather than a silent pass. It still blocks every run.
+
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
