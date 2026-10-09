@@ -4,7 +4,7 @@ Owner: A. Source of task IDs: [PRD section 8](PRD.md#8-three-person-task-board).
 
 Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice-shop.json`, `docs/decisions/0001-target-pin.md`, `docs/tasks/B-checklist.md`). Commit pinned: Juice Shop `v20.2.0` / `5658473cf8814459bf89000ce373b20ed0b4eb37`, allowed path `routes/search.ts`. `baseline_image_digest` is still `null` pending B's build step. Everything below that only needed the pin (not the digest) is now unblocked.
 
-**🛑 Current hard blocker (2026-10-09):** Guild agent sessions hang indefinitely with zero server-side events — not a config issue on our end (ruled out credentials, tool complexity, client timeouts). Escalated to Guild's team with session IDs. See A1 below for full evidence. This blocks A3 end-to-end and any real candidate proposal; A4/A5/A6 logic and tests proceed independently using fakes.
+**✅ Guild blocker resolved (2026-10-09, via Cory/Guild support):** not actually hung — Guild's message-accept step currently takes 30-60s and the CLI blocks on that before polling, making it look stuck. Session `01a1225a-e05d-f268-0000-402df81a76a8` did run: the `ping` tool was called and returned `{"echoed": "A1 proof of life", "timestamp": "2026-10-09T20:29:38.868Z"}` at 20:29:38 UTC — confirmed via `guild session events <id>`. A1's Guild tool-execution criterion is met.
 
 **Note:** `setup/pin-scan-baseline-spike` (B/C's earlier branch) is now stale relative to `main` — it has the Semgrep registry-rule pin (`config/semgrep/rules.lock.json`, `scripts/semgrep-scan.sh`) and B3's e2e check suite (`tests/e2e/juice-shop-checks.mjs`) that haven't landed on `main` yet. B is working on reconciling it. The Semgrep rule file is the one thing A still needs from it.
 
@@ -41,10 +41,8 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [ ] Capture one real baseline JSON finding (file, line, rule ID) as evidence artifact
 - [x] Guild account: workspace created (`antibody-dev`, `01a1224a-2310-3bb9-0000-99807e6c2ff8`), CLI installed and authenticated as `g3ram`
 - [x] Guild: agent created (`antibody-repair-agent`, `01a12248-138c-726e-0000-1fcb7df24304`), one zero-dependency `ping` tool connected (no network/credentials, to isolate the test from tool-side failures)
-- [ ] 🛑 BLOCKED — Guild: confirm a real session invokes the tool and returns a real result. **Every attempt hangs indefinitely.** `guild agent chat` and `guild agent test` both create a real server-side session and print "Processing input 1/1..." but never return; `guild session events <id>` / `guild session tasks <id>` show **zero events, zero tasks** for every attempt — the turn never starts server-side. Tried: disabling workspace "restrict account credentials" toggle (no change), confirmed managed LLM tier is active with 50M token balance (not a billing issue), confirmed via `guild agent test --timeout 60` that even the CLI's own internal timeout doesn't fire.
-  - Hung session IDs for reference: `01a1224a-3674-f268-0000-828bd84b3467`, `01a1224b-3d75-f268-0000-a7d6eaed013a`, `01a12258-df18-f268-0000-f2d21e6b6128`, `01a12259-ede6-f268-0000-92eb28018fbe`, `01a1225a-e05d-f268-0000-402df81a76a8` (ran via `guild agent test`, didn't honor its own `--timeout 60`)
-  - Escalated to Guild's sponsor/support team with the above evidence (2026-10-09, afternoon). Awaiting response.
-- [ ] Confirm Guild agent has outbound access to call our adapters — cannot test until the above unblocks
+- [x] Guild: confirm a real session invokes the tool and returns a real result. **Resolved** — root cause was slow (30-60s) message acceptance on Guild's side; the CLI blocks on that before polling, which looked like a hang. Session `01a1225a-e05d-f268-0000-402df81a76a8` actually completed: `ping` tool called, returned `{"echoed": "A1 proof of life", "timestamp": "2026-10-09T20:29:38.868Z"}`. Confirmed via `guild session events <id>`, not just CLI stdout.
+- [ ] Confirm Guild agent has outbound access to call our adapters — next real test, now unblocked
 
 ## A3 — Scanner and patch-proposal tools
 
@@ -88,6 +86,7 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 1. ~~Ping B for B1 ETA~~ — done, B1 merged (`18348ca`).
 2. ~~Start Guild account/auth~~ — done; blocked on Guild's response to the hung-session escalation (see above).
 3. ~~Write the A4 unit tests~~ — done, 9 cases passing.
-4. Resolve the two contract change requests from B (`CheckResult.image_digest`/`suite_hash`, `Observation.release_ref` optionality) via `docs/collab.md`, then apply to `src/contracts/models.py`.
-5. Once `setup/pin-scan-baseline-spike` reconciles: point `SemgrepAdapter` at the real pinned Semgrep rule, capture the finding artifact.
-6. Once Guild session works: wire `GuildPatchAdapter`, replace the fake adapter in a real end-to-end run.
+4. ~~Resolve the two contract change requests from B~~ — done, applied to `src/contracts/models.py` (see `docs/collab.md` Q7).
+5. ~~Guild session proof~~ — done (see above).
+6. Once `setup/pin-scan-baseline-spike` reconciles: point `SemgrepAdapter` at the real pinned Semgrep rule, capture the finding artifact.
+7. Wire `GuildPatchAdapter` for real (A3): replace the stub's raise with an actual `guild session create`/`guild session send` call (accounting for the 30-60s accept latency — don't block synchronously on it the way the CLI does; poll `guild session events` instead), exclude `data/static/codefixes/` from its source context, replace the fake adapter in a real end-to-end run.
