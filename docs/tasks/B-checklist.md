@@ -62,7 +62,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 
 ## B2. Prove rebuilt-image public deployment (target: first ~40 min)
 
-- [x] Build with a trivial harmless patch and push it to the registry: `spike-marker.patch` via `build-target`, image `ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b…` (full digest in the run output, [run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899))
+- [x] Build with a trivial harmless patch and push it to the registry: `spike-marker.patch` via `build-target`, image `ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b193d5c9800892992f7e3f93d40c91811bd1602a8f6428ad8020668a8` ( [run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899))
 - [ ] Deploy that digest to the public host; definition goes in `infra/akash/` or `infra/containers/`
 - [ ] External HTTP fetch, from outside this machine, shows the rebuilt image serving search (the marker app name is visible)
 - [ ] If Juice Shop can't be deployed promptly: escalate per PRD §9 (smaller attributed target, disclosed)
