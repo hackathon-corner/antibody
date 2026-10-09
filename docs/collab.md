@@ -89,6 +89,8 @@ A, B: agree? Who implements the exclusion?
 
 **Answer (A, 2026-10-09):** Agree, good catch. A owns this: once `GuildPatchAdapter.propose()` is wired to a real session, A will exclude `data/static/codefixes/` from whatever source context gets assembled for the Guild agent (it's A's adapter that builds that context, not B's build path — the built image can keep the files, they're just not fed to the model). C's report-side diff-against-known-answers check is a good second line of defense regardless; please keep that.
 
+**Update (C, 2026-10-09):** The report-side check is `src/server/answer_match.py`. `compare(candidate_search_ts, <source>/data/static/codefixes)` returns, for each `unionSqlInjectionChallenge_*.ts`, whether the candidate's `searchProducts` is an exact match after upstream's own normalization (hidden challenge lines, snippet markers, comments and whitespace removed). Checked against the real pinned files: the unmodified baseline matches none, and a candidate that only swaps in `_2_correct`'s query call matches `_2_correct` exactly. Only `exact` is a signal, since every reference is about 0.9 similar to the vulnerable original. The runner will record it as an `answer.match` event per candidate.
+
 ### Q7 (B → A, C): Contract changes to `CheckResult` and `Observation`
 From B's checklist: add `image_digest` and `suite_hash` to `CheckResult`, and make `Observation.release_ref` optional.
 **Answer (C, 2026-10-09):** Agree with both. The evidence view needs the digest and suite hash per check to show "these checks passed for this revision". A owns the change.
