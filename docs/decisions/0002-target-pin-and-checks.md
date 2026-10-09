@@ -1,4 +1,4 @@
-# 0001: Pinned target, scanner rule, and independent checks
+# 0002: Pinned target, scanner rule, and independent checks
 
 - Date: 2026-10-09
 - Drafted by: srismart (C) with Claude Code, for review by B (jguharaman) and A (G3Ram)

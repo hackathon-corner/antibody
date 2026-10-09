@@ -29,7 +29,7 @@ if [[ "$got_sha" != "$rule_sha" ]]; then
   exit 3
 fi
 
-path=$(jq -r '.allowedRepairPaths[0]' "$TARGET")
+path=$(jq -r '.allowed_paths[0]' "$TARGET")
 # Exit code 0 = scan completed (with or without findings). Scanner errors are kept in the JSON.
 (cd "$SRC" && SEMGREP_SEND_METRICS=off "$SEMGREP" scan --metrics=off --config "$rules_dir/rule.yaml" --json --quiet "$path") > "$OUT"
 jq -c --arg rule "$(jq -r '.rules[0].id' "$LOCK")" '{

@@ -48,7 +48,7 @@ jobs:
           case "$PATCH_NAME" in */*|..*|"") echo "patch name must be a bare file name" >&2; exit 1;; esac
           test -f "antibody/infra/containers/patches/$PATCH_NAME"
           case "$CHECK_MODE" in baseline|candidate) ;; *) echo "bad check_mode" >&2; exit 1;; esac
-          echo "commit=$(jq -r .commit antibody/config/targets/juice-shop.json)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(jq -r .source.commit antibody/config/targets/juice-shop.json)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
