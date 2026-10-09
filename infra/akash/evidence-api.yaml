@@ -1,0 +1,48 @@
+# Akash SDL for the evidence API + dashboard (owner: C, C3). Image built by .github/workflows/build-evidence-api.yml.
+# Paste into console.akash.network (Deploy > upload/paste SDL) and fill the <...> values THERE; never commit them.
+# The provider sees these env values: use a read-only GitHub token (read:packages) and, ideally, a read-only ClickHouse user.
+# Not yet deployed. Unverified on Akash: image-by-digest reference, and the pricing denom the console expects for card credits.
+---
+version: "2.0"
+
+services:
+  evidence-api:
+    image: ghcr.io/hackathon-corner/antibody-evidence-api@sha256:4a10c0f4dd41ce18de3a3fcfff16b63e8105f78203262980621627730d88c29a
+    credentials:
+      host: ghcr.io
+      username: <github-username>
+      password: <github-token-read-packages>
+    env:
+      - CLICKHOUSE_HOST=<bare-hostname>
+      - CLICKHOUSE_PORT=<port>
+      - CLICKHOUSE_USER=<user>
+      - CLICKHOUSE_PASSWORD=<password>
+      - CLICKHOUSE_DATABASE=<database>
+    expose:
+      - port: 8000
+        as: 80
+        to:
+          - global: true
+
+profiles:
+  compute:
+    evidence-api:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        evidence-api:
+          denom: uakt
+          amount: 10000
+
+deployment:
+  evidence-api:
+    dcloud:
+      profile: evidence-api
+      count: 1

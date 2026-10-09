@@ -16,3 +16,8 @@ Authorized Akash deployment definitions and setup notes. No credentials.
 5. Close the lease when it's no longer needed. Juice Shop is deliberately vulnerable.
 
 Status: SDL template, renderer and probe written and tested locally (probe against the local baseline, renderer against tag/digest input). Nothing deployed yet. See [the PRD](../../docs/PRD.md).
+
+## Files
+
+- `evidence-api.yaml` (owner: C): evidence API + dashboard. Secrets are `<...>` placeholders filled in the Akash console only.
+- Juice Shop target SDL (owner: B, B2): not yet written.
