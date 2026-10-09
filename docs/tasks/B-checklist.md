@@ -7,7 +7,7 @@ Stack: Python 3.11+ (stdlib first) for B's code, Docker for target builds. Juice
 ## 0. Workstation and access
 
 - [x] Python 3.11+ installed (3.12.10 via winget, 2026-10-09). Open a new shell so it's on PATH.
-- [ ] Docker Desktop installed and running (needs WSL2, which isn't installed yet; may need a reboot)
+- [x] Docker Desktop installed and running (engine 29.8.1 on WSL2, verified 2026-10-09)
 - [ ] Public host chosen: Akash or a fallback we're authorized to use
 - [ ] Container registry access (push/pull) for candidate images
 - [ ] Team fork of Juice Shop created under the org; `source.repo` in `config/targets/juice-shop.json` updated, commit unchanged

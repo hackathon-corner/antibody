@@ -1,0 +1,4 @@
+# Patches and container/shell inputs are consumed byte-exact on Linux.
+*.patch text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf

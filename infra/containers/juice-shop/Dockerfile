@@ -2,7 +2,7 @@
 # Builds the pinned Juice Shop target, optionally with one candidate patch applied.
 # Adapted from the upstream Dockerfile at the pinned commit (MIT, OWASP Juice Shop).
 # Build via scripts/target.py, which passes every pin from config/targets/juice-shop.json.
-# Build context: a directory holding candidate.patch (empty file = baseline).
+# Build context: a directory holding build-fixes/*.patch and candidate.patch (empty file = baseline).
 
 ARG GIT_IMAGE
 ARG BUILD_IMAGE
@@ -16,6 +16,9 @@ RUN git init -q . \
  && git fetch -q --depth 1 "${SOURCE_REPO}" "${SOURCE_COMMIT}" \
  && git checkout -q FETCH_HEAD \
  && test "$(git rev-parse HEAD)" = "${SOURCE_COMMIT}"
+# Host-owned build fixes first (see infra/containers/README.md), then the candidate.
+COPY build-fixes/ /build-fixes/
+RUN for f in /build-fixes/*.patch; do git apply --whitespace=nowarn "$f"; done
 COPY candidate.patch /candidate.patch
 RUN if [ -s /candidate.patch ]; then git apply --check /candidate.patch && git apply /candidate.patch; fi
 # Mirror upstream .dockerignore.

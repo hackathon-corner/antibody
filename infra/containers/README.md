@@ -4,7 +4,7 @@ Owner: B.
 
 Isolated candidate build/test infrastructure and pinned target image definitions.
 
-- `juice-shop/Dockerfile`: fetches the pinned commit inside the build (verifying the SHA), applies an optional `candidate.patch`, builds, and produces a distroless runtime image. Adapted from upstream's Dockerfile with two deviations: the server compile (`npm run build:server`) fails the build instead of being swallowed by upstream's `postinstall`, and the SBOM step is omitted. Run it through `scripts/target.py build`, which supplies all pins from `config/targets/juice-shop.json`.
+- `juice-shop/Dockerfile`: fetches the pinned commit inside the build (verifying the SHA), applies the host-owned `build-fixes/*.patch`, then an optional `candidate.patch`, builds, and produces a distroless runtime image. Adapted from upstream's Dockerfile with two deviations: the server compile (`npm run build:server`) fails the build instead of being swallowed by upstream's `postinstall`, and the image SBOM step is omitted. Run it through `scripts/target.py build`, which supplies all pins from `config/targets/juice-shop.json`.
 - `patches/`: build inputs for `.github/workflows/build-target.yml`. `spike-marker.patch` changes only the displayed app name to prove a modified-source build is what is served.
 
 Status: Dockerfile written, not yet built. The CI spike workflow builds from `patches/` and `build-fixes/`. See [the PRD](../../docs/PRD.md).

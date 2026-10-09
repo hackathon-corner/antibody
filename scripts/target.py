@@ -75,6 +75,7 @@ def cmd_build(target: dict, args: argparse.Namespace) -> None:
 
     with tempfile.TemporaryDirectory() as ctx:
         (Path(ctx) / "candidate.patch").write_bytes(patch)
+        shutil.copytree(ROOT / "infra" / "containers" / "build-fixes", Path(ctx) / "build-fixes")
         run([
             "docker", "build",
             "-f", str(dockerfile),
