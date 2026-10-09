@@ -103,8 +103,8 @@ Progress (2026-10-09, not yet run against real Akash, so nothing below is ticked
 ## B6. Bad-candidate tests (with A)
 
 - [x] Candidate that breaks search is rejected by the same gate: the `WHERE 1=0` mutant through `run_checks` + `build_candidate` (see B4)
-- [ ] Candidate that edits tests or forbidden paths is rejected before build
-- [ ] A legitimate repair passes; each candidate's origin is labeled accurately (supplied mutants are labeled as supplied, never as model output)
+- [x] Candidate that edits tests or forbidden paths is rejected before build: `tests/fixtures/juice-shop/candidates/forbidden-weakens-suite.patch` (the real repair plus a hunk that disables the suite's leak check; origin `operator-supplied-bad-candidate`, candidate `d0abb819…`, 2026-10-09) through the real worker: `worker.scope` FAIL naming `tests/e2e/juice-shop-checks.mjs`, no build, and `build_candidate` refused it (no verification record). A's agent-side validator rejects the same case in `tests/unit/test_adversarial_candidate.py`
+- [x] A legitimate repair passes; each candidate's origin is labeled accurately: `candidates/repair-parameterized.patch` (origin `operator-supplied-reference-repair`, **not model output**; candidate `7fe1347b…`) passes all 5 required checks on the current suite `be833ec4…`, and `build_candidate` released image `sha256:4be6e636…` (2026-10-09). A model-produced repair still depends on A's Guild run
 
 ## B7. Stretch: stable alias and recovery
 
