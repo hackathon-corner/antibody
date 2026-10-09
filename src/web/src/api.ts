@@ -10,6 +10,7 @@ export type EvidenceEvent = {
   observed_at: string
   outcome: string
   artifact_ref: string | null
+  detail: string | null
 }
 
 export type RunSummary = { runId: string; lastObservedAt: string }

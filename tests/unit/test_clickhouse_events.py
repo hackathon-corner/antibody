@@ -40,7 +40,7 @@ def test_stable_event_id_is_deterministic_and_input_sensitive():
 
 
 def test_row_round_trip_preserves_event():
-    event = make_event(candidate_hash="abc", artifact_ref="https://example.invalid/run/1")
+    event = make_event(candidate_hash="abc", artifact_ref="https://example.invalid/run/1", detail='{"checks": 5}')
     row = dict(zip(COLUMNS, event_to_row(event)))
     assert row_to_event(row) == event
 
@@ -66,3 +66,25 @@ def test_settings_require_every_key_and_bare_host(tmp_path, monkeypatch):
     )
     with pytest.raises(ClickHouseConfigError, match="bare hostname"):
         load_settings(env)
+
+
+def test_every_event_field_has_a_table_column():
+    from adapters.clickhouse_events import DDL
+
+    for column in COLUMNS:
+        assert f"\n    {column} " in DDL, column
+
+
+def test_store_satisfies_agent_event_sink():
+    from adapters.clickhouse_events import ClickHouseEventStore
+
+    class FakeClient:
+        def __init__(self):
+            self.rows = []
+
+        def insert(self, table, rows, column_names):
+            self.rows.extend(rows)
+
+    client = FakeClient()
+    ClickHouseEventStore(client).emit(make_event())
+    assert len(client.rows) == 1

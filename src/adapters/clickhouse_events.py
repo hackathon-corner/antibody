@@ -32,11 +32,15 @@ CREATE TABLE IF NOT EXISTS {TABLE} (
     observed_at    DateTime64(3, 'UTC'),
     outcome        LowCardinality(String),
     artifact_ref   Nullable(String),
+    detail         Nullable(String),
     inserted_at    DateTime64(3, 'UTC') DEFAULT now64(3)
 )
 ENGINE = ReplacingMergeTree(inserted_at)
 ORDER BY (run_id, observed_at, event_id)
 """
+
+# Columns added after the first deploy of the table; ensure_schema() adds them to existing tables.
+MIGRATIONS = ("ALTER TABLE {table} ADD COLUMN IF NOT EXISTS detail Nullable(String) AFTER artifact_ref",)
 
 COLUMNS = tuple(f.name for f in fields(Event))
 ENV_KEYS = ("CLICKHOUSE_HOST", "CLICKHOUSE_PORT", "CLICKHOUSE_USER", "CLICKHOUSE_PASSWORD", "CLICKHOUSE_DATABASE")
@@ -108,12 +112,18 @@ class ClickHouseEventStore:
 
     def ensure_schema(self) -> None:
         self._client.command(DDL)
+        for statement in MIGRATIONS:
+            self._client.command(statement.format(table=TABLE))
 
     def insert(self, events: list[Event]) -> int:
         if not events:
             return 0
         self._client.insert(TABLE, [event_to_row(e) for e in events], column_names=list(COLUMNS))
         return len(events)
+
+    def emit(self, event: Event) -> None:
+        """`agent.EventSink` implementation: write one event as it happens (Q9 in docs/collab.md)."""
+        self.insert([event])
 
     def events_for_run(self, run_id: str) -> list[Event]:
         result = self._client.query(

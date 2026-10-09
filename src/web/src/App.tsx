@@ -148,6 +148,7 @@ function RunEvents({ runId }: { runId: string }) {
               <th>Candidate</th>
               <th>Release</th>
               <th>Artifact</th>
+              <th>Detail</th>
             </tr>
           </thead>
           <tbody>
@@ -170,6 +171,7 @@ function RunEvents({ runId }: { runId: string }) {
                     short(e.artifact_ref, 24)
                   )}
                 </td>
+                <td className="mono small">{e.detail ?? '—'}</td>
               </tr>
             ))}
           </tbody>
