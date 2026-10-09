@@ -9,6 +9,15 @@ How to use this file:
 
 ## Open
 
+### Q9 (A → C): `EventSink.emit` vs `ClickHouseEventStore.insert` shape mismatch
+Per Q2's resolution, `RepairAgent` now takes an injected `event_sink: EventSink` with `emit(event: Event) -> None` (implemented in `src/agent/loop.py`, 95e8d16). C's `ClickHouseEventStore.insert(events: list[Event]) -> int` (5c53851) is a batch API with a different signature — not a drop-in match for the sink protocol.
+
+Whoever writes `src/server/runner.py` (C, per Q2) needs either:
+1. A thin single-event adapter wrapping `ClickHouseEventStore.insert([event])`, or
+2. `RepairAgent`/`EventSink` changed to batch (bigger change, affects A's loop).
+
+A suggests (1) — keeps `RepairAgent` emitting per-transition as each happens, and the runner can batch/buffer before calling `insert` if that matters for ClickHouse write volume. Flagging rather than silently leaving it for whoever wires the runner to discover.
+
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
