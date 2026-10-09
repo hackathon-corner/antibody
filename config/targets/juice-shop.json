@@ -10,7 +10,7 @@
     "tag_object": "c4e9b29ed0f9e4bbae3787aa2ca84267d57e5016",
     "commit": "5658473cf8814459bf89000ce373b20ed0b4eb37",
     "commit_date": "2026-08-10T14:43:31+02:00",
-    "note": "repo will point at the team fork once it exists; the commit must stay identical."
+    "note": "No team fork (decision 0002; dropped 2026-10-09): builds fetch this upstream commit and apply patches."
   },
   "allowed_paths": ["routes/search.ts"],
   "selected_defect": {

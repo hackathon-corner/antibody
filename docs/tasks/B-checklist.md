@@ -29,9 +29,9 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 - [x] Docker Desktop installed and running (engine 29.8.1 on WSL2, verified 2026-10-09)
 - [x] Public host chosen: Akash, from C's console account (Q6, 2026-10-09)
 - [x] Container registry push from CI: `build-target` pushes to `ghcr.io/hackathon-corner/antibody-target` (private) with the workflow token
-- [ ] Registry push from B's machine, if local builds are to be deployed (otherwise deploy CI-built digests)
+- [ ] Registry push from the host machine: **needed**, because the B5 connector pushes the locally verified image (`cand-<hash12>`) and deploys it by registry digest. Run `docker login ghcr.io` with a token that has `write:packages` (Docker keeps it in its credential store, never in this repo). Not done: Docker on B's machine has no `ghcr.io` login (2026-10-09). Tick after the first successful connector push
 - [ ] Registry pull access for the public host (Q6). Both packages are now public (API reports `public`, anonymous pull token 200, rechecked by B 2026-10-09 after A's note), so no pull credentials are needed. **Update (C, 2026-10-09 22:15 UTC):** `antibody-target` is pullable anonymously (manifest for `sha256:2b20151b…` returns 200 without credentials), so the Juice Shop lease was created with no registry credentials. Tick when a lease has actually pulled the image.
-- [ ] Team fork of Juice Shop. Decision 0002 says no fork is needed for the build path; decide whether to keep this item. If kept: `source.repo` updated, commit unchanged.
+- [x] Team fork of Juice Shop: **dropped** (B, 2026-10-09). Per decision 0002, builds fetch the pinned upstream commit and apply patches, so no fork is needed. `source.repo` stays upstream
 
 ## B1. Pin source/image, start target, synthetic baseline data
 
