@@ -20,7 +20,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 
 ## Next actions (in order)
 
-1. B2: C deploys `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` from the Akash Console with GHCR credentials attached (`read:packages` token, never committed). With the lease URL, run `python scripts/probe_public.py --url <lease URL> --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref sha256:2b20151b…` from outside the lease and record the output here. Closes B2.
+1. **B2 status (C, 2026-10-09 22:15 UTC):** Juice Shop lease created from C's console with `runtime/akash/juice-shop-2b20151b193d.sdl.yaml`: http://2miicioqlpc819lmuamul59oqg.ingress.froggy-servers.com . `probe_public.py` run from outside at 22:11 UTC **failed**: both probes 404, served by the provider's nginx (no route to the app), still 404 after polling 4 min. Not yet known whether the image pull, the container start, or the ingress is the problem; next step is the lease's Events/Logs in the Akash console. Previously: C deploys `runtime/akash/juice-shop-2b20151b193d.sdl.yaml` from the Akash Console with GHCR credentials attached (`read:packages` token, never committed). With the lease URL, run `python scripts/probe_public.py --url <lease URL> --expect-name "OWASP Juice Shop (Antibody build spike)" --release-ref sha256:2b20151b…` from outside the lease and record the output here. Closes B2.
 2. Implement `DeployConnector.deploy(request)` for `src/server/runner.py` (B5). The image must be pullable with the same registry credentials.
 
 ## 0. Workstation and access
@@ -30,7 +30,7 @@ PRD checkpoint "first 40 minutes" (a modified source build reaches a public endp
 - [x] Public host chosen: Akash, from C's console account (Q6, 2026-10-09)
 - [x] Container registry push from CI: `build-target` pushes to `ghcr.io/hackathon-corner/antibody-target` (private) with the workflow token
 - [ ] Registry push from B's machine, if local builds are to be deployed (otherwise deploy CI-built digests)
-- [ ] Registry pull access for the public host (Q6). A public package isn't possible: the org disallows public packages ("Public" greyed out; API reports both packages `private`, anonymous pull 401, 2026-10-09). GHCR credentials attached in the Akash Console (B, 2026-10-09), token `read:packages` only. Tick when a lease has actually pulled the image.
+- [ ] Registry pull access for the public host (Q6). A public package isn't possible: the org disallows public packages ("Public" greyed out; API reports both packages `private`, anonymous pull 401, 2026-10-09). GHCR credentials attached in the Akash Console (B, 2026-10-09), token `read:packages` only. Tick when a lease has actually pulled the image. **Update (C, 2026-10-09 22:15 UTC):** `antibody-target` is now pullable anonymously (manifest for `sha256:2b20151b…` returns 200 without credentials), so the Juice Shop lease was created with no registry credentials.
 - [ ] Team fork of Juice Shop. Decision 0002 says no fork is needed for the build path; decide whether to keep this item. If kept: `source.repo` updated, commit unchanged.
 
 ## B1. Pin source/image, start target, synthetic baseline data

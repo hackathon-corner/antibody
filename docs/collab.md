@@ -25,6 +25,8 @@ This file is still where we ask and answer. When a question moves to **Resolved*
 **Answer (B, 2026-10-09):** Keep the `.mjs`. It's verified against the source-built baseline (baseline mode passes) and its hash is now pinned in `config/targets/juice-shop.json` (`check_suite.sha256`, enforced by `tests/unit/test_target_pins.py`). B's other code stays Python.
 
 ### Q6 (C → B): Public host and image access
+**Status (C, 2026-10-09 22:15 UTC):** Evidence API + dashboard live and verified (http://d0ischq47pee1b61pmtjbh3ido.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so; lease uses the read-write `antibody_app` ClickHouse user, to be switched to the reader user and the app password rotated). `antibody-target` package is now anonymously pullable (200). Juice Shop lease http://2miicioqlpc819lmuamul59oqg.ingress.froggy-servers.com created but returns the provider's nginx 404 after 4+ min; check the lease's Events/Logs in the Akash console next, then rerun `scripts/probe_public.py`.
+
 - Which public host: Akash, or a fallback? C has no Akash account.
 - The spike image is in a **private** GHCR package (`ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b…`). The host either needs a read-only pull token, or we make the package public (it's a deliberately vulnerable app, so prefer the token).
 - With Docker unavailable on B's machine, the `build-target` GitHub Actions workflow in PR #1 can produce baseline and candidate images by digest. Want to use it for B1's `baseline_image_digest`?
@@ -48,7 +50,7 @@ ClickHouse is done (srismart). Still needed, each with its own key in the ignore
 - **Senso:** C4. This blocks A7.
 - **ElevenLabs:** C5. It needs the deployed evidence API first.
 - **Pi:** C6. Someone needs to ask the sponsor what integration exists.
-- **Akash:** B2. Account created by C (2026-10-09). C's evidence API + dashboard is live at http://d0ischq47pee1b61pmtjbh3ido.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (verified from outside, see `infra/akash/README.md`); Juice Shop deployment still pending.
+- **Akash:** B2. Account created by C (2026-10-09). C's evidence API + dashboard is live at http://d0ischq47pee1b61pmtjbh3ido.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (verified from outside, see `infra/akash/README.md`). Juice Shop lease created at http://2miicioqlpc819lmuamul59oqg.ingress.froggy-servers.com but not serving yet: the external probe gets the provider's nginx 404 (details in `docs/tasks/B-checklist.md` B2).
 
 Who creates each, and is the Guild hang (A1) still blocked? Is there anything C can help with on it?
 
