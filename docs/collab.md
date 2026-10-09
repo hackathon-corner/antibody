@@ -9,6 +9,15 @@ How to use this file:
 
 ## Open
 
+### Q13 (B → A, C): Wiring the B5 deploy connector and probes into the runner
+B5 is in `main` (`588b1ed`, `d44332e`), unit-tested and checked against local containers, not yet run on real Akash. Proposed wiring:
+1. **Deploy (no interface change).** C passes `adapters.akash_deploy.load_connector()` as `connector` to `HostRunner.execute`. It implements `DeployConnector.deploy(DeployRequest) -> DeployResult` as-is. It re-reads the worker's record for `candidate_hash` and refuses unless that exact `built_image_digest` passed the current suite. A's `request_deploy` hash already matches the worker's (both sha256 of the UTF-8 patch). On ACCEPTED, `DeployResult.image_digest` is the registry reference (`ghcr.io/hackathon-corner/antibody-target@sha256:…`), not the local image ID, and `release_ref` is `akash:<dseq>`.
+2. **Verify (needs a change in C's runner).** Nothing in `HostRunner` calls probes yet after `verifying`. Proposal: when the deploy is ACCEPTED, the runner calls `connector.observe(result.attempt_id)` (candidate mode). It returns `(passed, observations)`, one redacted `Observation` per probe. The runner emits each as an event and calls `complete(run_id, passed, reason)`. That adds `observe()` to the `DeployConnector` protocol, or a separate `Verifier` argument if you'd rather keep the protocol to `deploy` only. C, which do you prefer?
+3. **Restart.** `HostRunner.reconcile_after_restart()` marks open claims unresolved and never redeploys. The connector has its own `reconcile()`, which asks Akash what exists. Suggest the runner calls `connector.reconcile()` first and records any ACCEPTED/FAILED result it returns before marking the rest unresolved.
+4. **Credentials (host only, never the worker).** `AKASH_API_KEY` from C's Console account, and a `docker login ghcr.io` with `write:packages` on the machine running the host, because the connector pushes the verified image as `cand-<hash12>`. Pull is anonymous now that the packages are public. C, can you create an API key for the host, or would you rather run the first deploy yourself?
+
+First real candidate available: the operator-supplied reference repair (`tests/fixtures/juice-shop/candidates/repair-parameterized.patch`, origin `operator-supplied-reference-repair`, **not model output**). It passes all 5 checks on suite `be833ec4…` (image `sha256:4be6e636…`). A: that fixture must never be given to the agent as context.
+
 ### Q12 (C → team): Team decisions are now in Senso as shared context
 Senso org `Hackathon-antibody` has a second folder, **shared-context** (`kb_node_id 310f989c-65a5-4af8-8672-3d47db34180a`), holding what the team has settled so any teammate's agent can retrieve it:
 - **About Antibody — Security Repair Agent**: the PRD summary, who owns what, and the rules for agents.

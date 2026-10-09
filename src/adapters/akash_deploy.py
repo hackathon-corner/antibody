@@ -183,6 +183,10 @@ class _Store:
             _TERMINAL)
         return [dict(zip([c[0] for c in cur.description], r)) for r in cur.fetchall()]
 
+    def live_attempts(self) -> list[dict]:
+        cur = self._db.execute("SELECT * FROM attempts WHERE state = 'accepted' ORDER BY created_at")
+        return [dict(zip([c[0] for c in cur.description], r)) for r in cur.fetchall()]
+
     def holder(self) -> str | None:
         row = self._db.execute("SELECT attempt_id FROM coordinator").fetchone()
         return row[0] if row else None
@@ -272,6 +276,43 @@ class AkashDeployConnector:
         return probe(url, mode=mode, target_id=self._target_id, release_ref=f"akash:{a['dseq']}",
                      expect_name=expect_name, fetch=fetch)
 
+    def recover(self, to_attempt_id: str) -> DeployResult:
+        """B7: roll back to an earlier accepted release, by its exact registry digest.
+
+        Only attempts that were ACCEPTED (so their candidate passed the checks) can be restored;
+        the unrepaired baseline is never redeployed this way. The new deployment is recorded as
+        its own attempt with run_id ``recover:<to_attempt_id>``. Once it is ACCEPTED, the
+        currently live attempt (if any) is closed. Recovery restores a previous revision; it is
+        not a new security fix.
+        """
+        source = self._store.get(to_attempt_id)
+        if not source or source["state"] not in ("accepted", "closed") or not source["registry_ref"] or not source["uri"]:
+            return self._result(f"refused-{uuid.uuid4().hex[:8]}", source["registry_ref"] if source else "",
+                                None, DeployStatus.FAILED, f"{to_attempt_id} was never an accepted release")
+        live = self._store.live_attempts()
+        request = DeployRequest(f"recover:{to_attempt_id}", source["candidate_hash"], source["image_id"])
+        problem = self._verify(request)
+        if problem:
+            return self._result(f"rejected-{uuid.uuid4().hex[:8]}", source["registry_ref"], None,
+                                DeployStatus.FAILED, problem)
+        attempt_id, holder = self._store.begin(request)
+        if attempt_id is None:
+            return self._result(f"refused-{uuid.uuid4().hex[:8]}", source["registry_ref"], None,
+                                DeployStatus.UNKNOWN, f"deployment {holder} is still unresolved; reconcile first")
+        result = self._attempt(attempt_id, request, pushed_ref=source["registry_ref"])
+        if result.status == DeployStatus.ACCEPTED:
+            for old in live:
+                if old["attempt_id"] != to_attempt_id:
+                    try:
+                        self.close(old["attempt_id"])
+                    except (AkashApiError, RuntimeError):
+                        pass  # left live; visible via live_attempts() and the Akash Console
+        return result
+
+    def live(self) -> list[dict]:
+        """Accepted attempts whose Akash deployments have not been closed."""
+        return self._store.live_attempts()
+
     def close(self, attempt_id: str) -> None:
         """Close the attempt's Akash deployment (end of event, or recovery). Raises on failure."""
         a = self._store.get(attempt_id)
@@ -304,11 +345,11 @@ class AkashDeployConnector:
             return "check suite changed since this candidate was verified; re-run checks"
         return None
 
-    def _attempt(self, attempt_id: str, request: DeployRequest) -> DeployResult:
+    def _attempt(self, attempt_id: str, request: DeployRequest, pushed_ref: str | None = None) -> DeployResult:
         st = self._store
         try:
             api = self._akash()
-            ref = self._registry.push(request.built_image_digest, f"cand-{request.candidate_hash[:12]}")
+            ref = pushed_ref or self._registry.push(request.built_image_digest, f"cand-{request.candidate_hash[:12]}")
             if not ref.startswith(self._repo + "@sha256:"):
                 raise RuntimeError(f"registry returned an unexpected reference {ref}")
             st.update(attempt_id, registry_ref=ref, state="pushed")

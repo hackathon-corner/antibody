@@ -246,3 +246,45 @@ def test_observe_refuses_an_attempt_without_an_accepted_endpoint(tmp_path):
     result = c.deploy(req())
     with pytest.raises(RuntimeError, match="no accepted public endpoint"):
         c.observe(result.attempt_id)
+
+
+class SeqAkash(FakeAkash):
+    """Hands out a new dseq per deployment."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.n = 100
+
+    def create_deployment(self, sdl):
+        super().create_deployment(sdl)
+        self.n += 1
+        return str(self.n)
+
+
+def test_recover_redeploys_the_earlier_release_by_digest_and_closes_the_live_one(tmp_path):
+    h2, image2 = "b" * 64, "sha256:" + "c" * 64
+    record(tmp_path)
+    record(tmp_path, h=h2, image=image2)
+    api, reg = SeqAkash(), FakeRegistry()
+    c = connector(tmp_path, api, reg)
+    first = c.deploy(req())
+    reg.ref = f"{REPO}@sha256:" + "9" * 64
+    second = c.deploy(req(h2, image2))
+    assert first.status == second.status == DeployStatus.ACCEPTED
+    c.close(first.attempt_id)  # rolled forward: only the second release is live
+
+    back = c.recover(first.attempt_id)
+    assert back.status == DeployStatus.ACCEPTED, back.error
+    assert back.image_digest == PUSHED, "restores the exact earlier registry digest"
+    assert len(reg.pushed) == 2, "recovery does not push again"
+    assert f'image: "{PUSHED}"' in api.sdls[-1]
+    assert second.release_ref.split(":")[1] in api.closed
+    assert [a["attempt_id"] for a in c.live()] == [back.attempt_id]
+
+
+def test_recover_refuses_an_attempt_that_was_never_accepted(tmp_path):
+    record(tmp_path)
+    c = connector(tmp_path, FakeAkash(bids=[]))
+    failed = c.deploy(req())
+    result = c.recover(failed.attempt_id)
+    assert result.status == DeployStatus.FAILED and "never an accepted release" in result.error

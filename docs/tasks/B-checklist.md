@@ -108,5 +108,7 @@ Progress (2026-10-09, not yet run against real Akash, so nothing below is ticked
 
 ## B7. Stretch: stable alias and recovery
 
+Progress (2026-10-09, unit-tested only, not yet on real Akash): the connector's `recover(attempt_id)` redeploys an earlier accepted release by its exact registry digest (no re-push), records it as run `recover:<attempt>`, then closes the live deployment. `live()` lists open releases. It only restores releases whose candidate passed the current suite, so the unrepaired baseline can't come back this way. A stable alias is not built: Akash gives each lease its own hostname, so an alias needs DNS or a proxy we don't have.
+
 - [ ] Promote behind a stable alias, then recover to the previous revision, both tied to exact digests
 - [ ] Restoring a vulnerable baseline is not described as a security fix
