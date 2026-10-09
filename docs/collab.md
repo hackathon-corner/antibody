@@ -54,7 +54,7 @@ ClickHouse is done (srismart). Still needed, each with its own key in the ignore
 - **Senso:** C4. This blocks A7.
 - **ElevenLabs:** C5. It needs the deployed evidence API first.
 - **Pi:** C6. Someone needs to ask the sponsor what integration exists.
-- **Akash:** B2. Account created by C (2026-10-09); deployment still pending.
+- **Akash:** B2. Account created by C (2026-10-09). C's evidence API + dashboard is live at http://d0ischq47pee1b61pmtjbh3ido.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (verified from outside, see `infra/akash/README.md`); Juice Shop deployment still pending.
 
 Who creates each, and is the Guild hang (A1) still blocked? Is there anything C can help with on it?
 
