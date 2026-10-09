@@ -4,24 +4,24 @@ Owner: B. Task IDs and "done when" criteria come from [PRD §8](../PRD.md#builde
 
 Stack: Python 3.11+ (stdlib first) for B's Python code, Docker for target builds. The independent check suite is Node with no dependencies (`tests/e2e/juice-shop-checks.mjs`; see Q5 in [collab.md](../collab.md)). Juice Shop stays Node inside its container.
 
-## Status (updated 2026-10-09, at `54cbd3a`)
+## Status (updated 2026-10-09, after `413dd38`)
 
 | Task | State | Blocking |
 |---|---|---|
-| B1 | Baseline built from source, local image ID recorded, smoke and injection reproduced | Confirm seed data; `targetId` naming |
+| B1 | **Done.** Baseline built from source (`sha256:e106dde7…`), smoke and injection reproduced, seed data confirmed, ids settled | — |
 | B2 | **Done (2026-10-09).** Spike image served publicly on Akash at https://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so ; external probe passed | Close the lease when not needed (deliberately vulnerable) |
-| B3 | Suite and expectations written and verified against the upstream release package | Re-observe on the source-built baseline; record the suite hash |
-| B4 | Worker written and verified end-to-end on a supplied repair (`src/adapters/check_worker.py`) | A wires `run_checks`; negative control through the worker still to run |
-| B5 | Not started | B2, B4. A6 waits on this. |
-| B6 | Not started | B4 (A4 is done) |
-| B7 | Stretch | B5 |
+| B3 | **Done.** Suite re-observed on the source-built baseline; hash `be833ec4…` pinned and enforced | — |
+| B4 | **Done (worker).** Verified end-to-end on the supplied repair; `WHERE 1=0` negative control rejected through the worker | A wires `run_checks`; C passes `build_candidate` |
+| B5 | Connector, coordinator, reconcile and probes written; unit-tested and probed against local containers. Not yet run on real Akash | `AKASH_API_KEY` and host `docker login ghcr.io` (Q13); runner wiring (Q13). A6 waits on this |
+| B6 | **Done.** Mutant and forbidden-path candidates rejected by the gate; supplied repair passes (all labeled operator-supplied) | A model-produced repair depends on A's Guild run |
+| B7 | Stretch. `recover()` unit-tested; no stable alias (no DNS/proxy) | B5 real run |
 
 PRD checkpoint "first 40 minutes" (a modified source build reaches a public endpoint) is **missed**. B2 and B4 are now the team's critical path.
 
 ## Next actions (in order)
 
 1. **B2 done (C, 2026-10-09 22:46 UTC):** Juice Shop spike lease https://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so (Akash, digitalfrontier provider, deployed from C's console with `runtime/akash/juice-shop-2b20151b193d.sdl.yaml`). `probe_public.py --mode baseline` from outside, 2026-10-09 22:45:52–22:45:58 UTC, exit 0: `public.app-name` 200 = `OWASP Juice Shop (Antibody build spike)`; `public.search-ordinary.{apple,banana,lemon,raspberry,juice,empty}` all 200 with fixture IDs matching; `public.injection` 200, reproduces (24 rows, all credential-shaped), as expected for the unrepaired baseline; `public.search-quote` 500 (not required). Two earlier leases (`froggy-servers.com`, then `cpu.aesservices.net`) ran the container (`Server listening on port 3000`) but their nginx ingress never routed our hostname (a made-up hostname on the same provider gave the identical 404); both closed. The digitalfrontier provider, which also hosts the evidence API, routed on the first try.
-2. B5 first real run: set `AKASH_API_KEY` (C's Console account) and `docker login ghcr.io` (write:packages), deploy a passing candidate with `load_connector().deploy(...)`, then `observe(attempt_id)`. Confirms whether the Console API reports service URIs.
+2. B5 first real run: set `AKASH_API_KEY` (C's Console account) and `docker login ghcr.io` (write:packages), deploy a passing candidate with `load_connector().deploy(...)`, then `observe(attempt_id)`. Confirms whether the Console API reports service URIs. The connector now leases from the provider that worked for C (digitalfrontier h6i-dedicated) when it bids, and never from the two whose ingress didn't route (`deploy.providers` in `config/targets/juice-shop.json`).
 
 ## 0. Workstation and access
 
@@ -93,7 +93,7 @@ Suite written by C in the spike; B owns it from here.
 
 ## B5. Fixed deployment connector and external verification
 
-Progress (2026-10-09, not yet run against real Akash, so nothing below is ticked): `src/adapters/akash_deploy.py` (`load_connector()`) implements the first three items. It re-checks the worker's verification record, pushes the verified image to GHCR as `cand-<hash12>`, deploys by registry digest via the Akash Console API with read-only pull credentials from the environment, serializes through one coordinator row in `runtime/deploy/akash.sqlite`, and `reconcile()` resolves unfinished attempts from Akash's state without redeploying. 17 unit tests in `tests/unit/test_akash_deploy.py`. Probes: `src/adapters/public_probe.py` (CLI `scripts/probe_public.py --mode baseline|candidate`), reached from the connector as `observe(attempt_id)`, emit one `Observation` per probe. Observed locally (2026-10-09, not yet against a public endpoint): the source-built baseline passes baseline mode and fails candidate mode (quote → 500, 26 credential-shaped injection rows); the operator-supplied repair image `sha256:02a8df7b…` passes candidate mode (injection 0 rows, quote 200, all 6 ordinary searches). 9 probe tests in `tests/unit/test_public_probe.py`.
+Progress (2026-10-09, not yet run against real Akash, so nothing below is ticked): `src/adapters/akash_deploy.py` (`load_connector()`) implements the first three items. It re-checks the worker's verification record, pushes the verified image to GHCR as `cand-<hash12>`, deploys by registry digest via the Akash Console API with read-only pull credentials from the environment, serializes through one coordinator row in `runtime/deploy/akash.sqlite`, and `reconcile()` resolves unfinished attempts from Akash's state without redeploying. Bids are ordered by `deploy.providers` in the target config: preferred providers first, avoided ones never leased, then price. Unit tests in `tests/unit/test_akash_deploy.py`. Probes: `src/adapters/public_probe.py` (CLI `scripts/probe_public.py --mode baseline|candidate`), reached from the connector as `observe(attempt_id)`, emit one `Observation` per probe. Observed locally (2026-10-09, not yet against a public endpoint): the source-built baseline passes baseline mode and fails candidate mode (quote → 500, 26 credential-shaped injection rows); the operator-supplied repair image `sha256:02a8df7b…` passes candidate mode (injection 0 rows, quote 200, all 6 ordinary searches). 9 probe tests in `tests/unit/test_public_probe.py`.
 
 - [ ] `DeployConnector.deploy(request)` for `src/server/runner.py`: candidate hash and image digest only; no arbitrary host, URL, command or `latest` tag
 - [ ] Deployments serialized; durable state; reconciles with the host after a restart or timeout (the runner's `RunStore.claim_deploy` already records claims; the connector must reconcile with the host's actual state)

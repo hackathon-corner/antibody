@@ -288,3 +288,28 @@ def test_recover_refuses_an_attempt_that_was_never_accepted(tmp_path):
     failed = c.deploy(req())
     result = c.recover(failed.attempt_id)
     assert result.status == DeployStatus.FAILED and "never an accepted release" in result.error
+
+
+PREFER, AVOID = TARGET["deploy"]["providers"]["prefer"][0], TARGET["deploy"]["providers"]["avoid"][0]
+
+
+def test_preferred_provider_wins_over_a_cheaper_bid(tmp_path):
+    api = FakeAkash(bids=[bid("p-cheap", "1.0"), bid(PREFER, "9.0")])
+    record(tmp_path)
+    assert connector(tmp_path, api).deploy(req()).status == DeployStatus.ACCEPTED
+    assert api.leases == [PREFER]
+
+
+def test_avoided_provider_is_never_leased_even_when_cheapest(tmp_path):
+    api = FakeAkash(bids=[bid(AVOID, "0.1"), bid("p-dear", "5.0")])
+    record(tmp_path)
+    assert connector(tmp_path, api).deploy(req()).status == DeployStatus.ACCEPTED
+    assert api.leases == ["p-dear"]
+
+
+def test_only_avoided_bids_closes_the_deployment(tmp_path):
+    api = FakeAkash(bids=[bid(AVOID, "0.1")])
+    record(tmp_path)
+    result = connector(tmp_path, api).deploy(req())
+    assert result.status == DeployStatus.FAILED and "avoided providers" in result.error
+    assert api.leases == [] and api.closed == ["12345"]

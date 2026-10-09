@@ -44,6 +44,11 @@
     "registry_repo": "ghcr.io/hackathon-corner/antibody-target",
     "sdl_template": "infra/akash/juice-shop.sdl.template.yaml",
     "service": "juice-shop",
+    "providers": {
+      "prefer": ["akash1aaul837r7en7hpk9wv2svg8u78fdq0t2j2e82z"],
+      "avoid": ["akash1s3hq36mpas4nmkqasn7fgwhs9968cgl3u5esnw", "akash175llqyjvxfle9qwt740vm46772dzaznpzgm576"],
+      "note": "prefer: digitalfrontier h6i-dedicated.eu-se-1, which served both the spike and the evidence API. avoid: froggy-servers.com and cpu.aesservices.net, whose ingress never routed our hostname while the container was listening (C, 2026-10-09). Addresses from console-api.akash.network/v1/providers."
+    },
     "note": "Fixed deploy target for src/adapters/akash_deploy.py. Images are pushed as cand-<hash12> and deployed by registry digest only."
   },
   "public_endpoint": { "status": "pending", "note": "No hosting credentials provisioned yet." }

@@ -12,7 +12,8 @@ Then it:
    private again, set ``GHCR_PULL_USER``/``GHCR_PULL_TOKEN`` (read:packages only) and they are
    added to the SDL;
 3. creates the deployment through the Akash Console API (``AKASH_API_KEY``), leases the
-   cheapest bid, and waits for the service to report a URI.
+   first bid from a preferred provider (else the cheapest bid not on the avoid list; see
+   ``deploy.providers`` in the target config), and waits for the service to report a URI.
 
 Deployments are serialized: one coordinator row in a local SQLite store, and every step is
 recorded there before the next one starts. A crash or timeout leaves the attempt non-terminal;
@@ -205,6 +206,9 @@ class AkashDeployConnector:
         self._target_id = target["target_id"]
         self._repo = deploy["registry_repo"]
         self._service = deploy["service"]
+        providers = deploy.get("providers") or {}
+        self._prefer = list(providers.get("prefer") or [])
+        self._avoid = set(providers.get("avoid") or [])
         self._template = (ROOT / deploy["sdl_template"]).read_text(encoding="utf-8")
         self._runtime = runtime_dir or ROOT / "runtime"
         self._env = os.environ if env is None else env
@@ -399,12 +403,18 @@ class AkashDeployConnector:
                 bids, last = [], str(exc)
             else:
                 last = "no open bids"
-            if bids:
+            usable = [b for b in bids if b["id"]["provider"] not in self._avoid]
+            if bids and not usable:
+                last = f"only bids from avoided providers ({len(bids)})"
+            if usable:
+                bids = usable
                 break
             if self._clock() >= deadline:
                 return None, f"no usable bid within {self._bid_timeout:.0f}s ({last})"
             self._sleep(self._poll)
-        bids.sort(key=lambda b: float(b.get("price", {}).get("amount", "inf")))
+        rank = {p: i for i, p in enumerate(self._prefer)}
+        bids.sort(key=lambda b: (rank.get(b["id"]["provider"], len(rank)),
+                                 float(b.get("price", {}).get("amount", "inf"))))
         errors = []
         for bid in bids[:3]:
             bid_id = bid["id"]
