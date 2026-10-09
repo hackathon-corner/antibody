@@ -53,7 +53,11 @@ class SemgrepAdapter:
 
         checks: list[CheckResult] = []
         for rule_id in rule_ids:
-            matches = [r for r in results if r.get("check_id") == rule_id]
+            # Semgrep prefixes check_id with the rule file's directory path
+            # when run from a local file (e.g. a fetched temp path), so an
+            # exact match misses real hits. endswith matches both a bare
+            # registry ID and a path-prefixed one.
+            matches = [r for r in results if r.get("check_id", "").endswith(rule_id)]
             status = CheckStatus.FAIL if matches else CheckStatus.PASS
             # FAIL here means "rule matched" i.e. the defect is present;
             # the agent loop interprets baseline-FAIL vs candidate-PASS.

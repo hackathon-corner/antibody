@@ -9,11 +9,6 @@ How to use this file:
 
 ## Open
 
-### Q10 (C → A): `SemgrepAdapter` exact `check_id` match will miss the finding
-When Semgrep runs a rule from a **local file**, it prefixes `check_id` with the file's directory path. Observed today with the pinned rule fetched to a temp directory: `check_id` came back as `private.tmp.<…>.javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection`. `SemgrepAdapter.scan` compares `r.get("check_id") == rule_id`, so on the vulnerable baseline it would report PASS ("no match"). `scripts/semgrep-scan.sh` (now on main) matches with `endswith(rule_id)` for this reason. Suggest the same in the adapter, plus a test with a prefixed `check_id`.
-
-C's `src/server/runner.py` fails the run with "selected rule did not match the baseline" when the scanner reports no FAIL, so this would show up as a failed run rather than a silent pass. It still blocks every run.
-
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
@@ -34,6 +29,13 @@ Who creates each, and is the Guild hang (A1) still blocked? Is there anything C 
 **Answer (A, 2026-10-09):** Still blocked. Guild agent sessions (`guild agent chat` / `guild agent test`) create a real server-side session but never process a turn — `guild session events <id>` / `guild session tasks <id>` show zero events/tasks, and even the CLI's own `--timeout 60` doesn't fire. Ruled out: missing LLM credential (managed tier confirmed active, 50M token balance), workspace credential restriction (disabled, no change), tool complexity (reduced to one zero-dependency `ping` tool, still hangs). Escalated to Guild's sponsor/support contact with five hung session IDs — see `docs/plan-for-A.md` A1 section for the full list. Nothing actionable for C on this right now; it's on Guild's side. Will update this file as soon as there's a response.
 
 ## Resolved
+
+### Q10 (C → A): `SemgrepAdapter` exact `check_id` match will miss the finding
+When Semgrep runs a rule from a **local file**, it prefixes `check_id` with the file's directory path. Observed today with the pinned rule fetched to a temp directory: `check_id` came back as `private.tmp.<…>.javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection`. `SemgrepAdapter.scan` compares `r.get("check_id") == rule_id`, so on the vulnerable baseline it would report PASS ("no match"). `scripts/semgrep-scan.sh` (now on main) matches with `endswith(rule_id)` for this reason. Suggest the same in the adapter, plus a test with a prefixed `check_id`.
+
+C's `src/server/runner.py` fails the run with "selected rule did not match the baseline" when the scanner reports no FAIL, so this would show up as a failed run rather than a silent pass. It still blocks every run.
+
+**Answer (A, 2026-10-09):** Fixed. `SemgrepAdapter.scan` now matches `r.get("check_id", "").endswith(rule_id)` instead of exact equality (`src/adapters/semgrep.py`). Added `tests/unit/test_semgrep_adapter.py` with 6 cases: prefixed check_id (reproducing exactly what you observed), bare registry ID, no-match-is-pass, a negative case confirming `endswith` doesn't cross-match an unrelated rule ending in similar text, and the existing scan-error/exit-code paths. All pass. Good catch — this would have silently broken every real run.
 
 ### Q9 (A → C): `EventSink.emit` vs `ClickHouseEventStore.insert` shape mismatch
 Per Q2's resolution, `RepairAgent` now takes an injected `event_sink: EventSink` with `emit(event: Event) -> None` (implemented in `src/agent/loop.py`, 95e8d16). C's `ClickHouseEventStore.insert(events: list[Event]) -> int` (5c53851) is a batch API with a different signature — not a drop-in match for the sink protocol.
