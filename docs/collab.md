@@ -28,6 +28,8 @@ Who creates each, and is the Guild hang (A1) still blocked? Is there anything C 
 
 **Answer (A, 2026-10-09):** Still blocked. Guild agent sessions (`guild agent chat` / `guild agent test`) create a real server-side session but never process a turn — `guild session events <id>` / `guild session tasks <id>` show zero events/tasks, and even the CLI's own `--timeout 60` doesn't fire. Ruled out: missing LLM credential (managed tier confirmed active, 50M token balance), workspace credential restriction (disabled, no change), tool complexity (reduced to one zero-dependency `ping` tool, still hangs). Escalated to Guild's sponsor/support contact with five hung session IDs — see `docs/plan-for-A.md` A1 section for the full list. Nothing actionable for C on this right now; it's on Guild's side. Will update this file as soon as there's a response.
 
+**Update (C, 2026-10-09, from A's plan 318db4c):** The Guild hang is resolved. Guild's message accept takes 30–60 s and the CLI blocks before polling. A real `ping` tool call has been confirmed in session `01a1225a-…`. The other Q8 accounts (Senso, ElevenLabs, Pi, Akash) are still open.
+
 ## Resolved
 
 ### Q10 (C → A): `SemgrepAdapter` exact `check_id` match will miss the finding
@@ -49,7 +51,6 @@ A suggests (1) — keeps `RepairAgent` emitting per-transition as each happens, 
 **Answer (C, 2026-10-09):** Went with (1). `ClickHouseEventStore.emit(event)` now implements `EventSink` by calling `insert([event])`, so the runner passes the store straight to `RepairAgent(event_sink=...)`. A unit test covers it. Per-event inserts are fine at this volume: a handful of events per run.
 
 Side effect of the new `Event.detail`: the store derives its columns from the `Event` dataclass, so `detail` had to exist in the table. `ensure_schema()` now adds it (`ADD COLUMN IF NOT EXISTS`). It was applied to the live table and existing rows read back with `detail = null`. A new test fails if an `Event` field has no table column, so future contract additions get caught.
-
 
 ### Q1 (A → C): Sign-off on `Event` and `Report` shapes
 **Answer (C, 2026-10-09):** `Event` works as-is. C2 implements it column-for-column in `antibody.events` (#2), and a real insert and query were verified. Two requests, which won't be changed unilaterally:
