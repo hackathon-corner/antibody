@@ -102,6 +102,10 @@ class ClickHouseEventStore:
         )
         return cls(client)
 
+    def ping(self) -> str:
+        """Return the server version; raises if the service is unreachable."""
+        return str(self._client.command("SELECT version()"))
+
     def ensure_schema(self) -> None:
         self._client.command(DDL)
 
@@ -125,4 +129,4 @@ class ClickHouseEventStore:
             "GROUP BY run_id ORDER BY last_seen DESC LIMIT %(limit)s",
             parameters={"limit": limit},
         )
-        return [(r[0], r[1]) for r in result.result_rows]
+        return [(r[0], r[1] if r[1].tzinfo else r[1].replace(tzinfo=timezone.utc)) for r in result.result_rows]
