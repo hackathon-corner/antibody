@@ -9,32 +9,6 @@ How to use this file:
 
 ## Open
 
-### Q1 (A → C): Sign-off on `Event` and `Report` shapes
-**Answer (C, 2026-10-09):** `Event` works as-is. C2 implements it column-for-column in `antibody.events` (#2), and a real insert and query were verified. Two requests, which won't be changed unilaterally:
-1. Add an optional `detail: str | None` to `Event` for small redacted JSON, such as check counts or image digest. Without it, the dashboard can show only the outcome string.
-2. `Report` needs its input identities for PRD §5: baseline/candidate image digests, rule IDs, and the test-suite hash. Today they're only reachable through `checks`. Either add the fields or agree that `Report` is built from `Run` + `Candidate` + `DeployResult`.
-
-A, please confirm or push back. C won't build the report endpoint until this is settled.
-
-### Q2 (A → C): Who emits events, and does `RepairAgent` run inside C's host process?
-**Answer (C, 2026-10-09), proposal:**
-- Keep the evidence API (`src/server/app.py`) read-only and separate. It must never run the agent or hold deploy credentials.
-- Run the agent from a separate host runner process. `RepairAgent` takes an injected `EventSink` with `emit(event: Event) -> None`. C provides the ClickHouse implementation (`ClickHouseEventStore.insert`); tests use an in-memory sink.
-- Use `adapters.clickhouse_events.stable_event_id(run_id, event_type, emitter, key)` for IDs, so retries deduplicate.
-- Suggested event types: `scan.baseline`, `candidate.proposed`, `candidate.rejected`, `checks.completed`, `deploy.requested`, `deploy.result`, `probe.observed`, `run.state`.
-
-Open point: who owns the host runner? C can write a thin `src/server/runner.py` that wires A's loop, B's worker and connector, and the sink, if A and B agree.
-
-### Q3 (A → B/C): Semgrep adapter vs. the pinned registry rule
-**Answer (C, 2026-10-09):** PR #1 doesn't commit the rule text, because of its license. `config/semgrep/rules.lock.json` pins the rule's registry IDs and SHA-256, and `scripts/semgrep-scan.sh` fetches the rule, verifies the hash, and scans. `SemgrepAdapter` can call that script, or reuse its fetch-and-verify step and then pass `--config <fetched file>`. Both the local and CI scans produced exactly one finding at `routes/search.ts:23` with 0 errors ([run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899)). B is merging PR #1.
-
-### Q4 (C → A, B): Upstream ships a correct fix for this exact defect
-The pinned source contains `data/static/codefixes/unionSqlInjectionChallenge_2_correct.ts` (plus `_1`, `_3` and `.info.yml`), the upstream reference answers for this challenge. If the agent can see them, a "repair" could be a copy of them.
-- Proposal: the build path removes or hides `data/static/codefixes/` from the agent's source context, while the built image stays unchanged. The validator already limits edits to `routes/search.ts`.
-- The report should disclose that upstream answer files exist, and whether the candidate matches one (C can diff for this).
-
-A, B: agree? Who implements the exclusion?
-
 ### Q5 (C → B): Check-suite language
 `tests/e2e/juice-shop-checks.mjs` in PR #1 is Node with no dependencies. It's verified against the baseline, the build-spike image, and a search-disabled mutant. B's checklist says the suite should be Python. Are you keeping the `.mjs`, or porting it? If you port it, please keep the fixture file and check IDs, so evidence from both runs stays comparable.
 
@@ -42,10 +16,6 @@ A, B: agree? Who implements the exclusion?
 - Which public host: Akash, or a fallback? C has no Akash account.
 - The spike image is in a **private** GHCR package (`ghcr.io/hackathon-corner/antibody-target@sha256:2b20151b…`). The host either needs a read-only pull token, or we make the package public (it's a deliberately vulnerable app, so prefer the token).
 - With Docker unavailable on B's machine, the `build-target` GitHub Actions workflow in PR #1 can produce baseline and candidate images by digest. Want to use it for B1's `baseline_image_digest`?
-
-### Q7 (B → A, C): Contract changes to `CheckResult` and `Observation`
-From B's checklist: add `image_digest` and `suite_hash` to `CheckResult`, and make `Observation.release_ref` optional.
-**Answer (C, 2026-10-09):** Agree with both. The evidence view needs the digest and suite hash per check to show "these checks passed for this revision". A owns the change.
 
 ### Q8 (C → team): Remaining sponsor accounts
 ClickHouse is done (srismart). Still needed, each with its own key in the ignored `.env` and never in chat or source:
@@ -56,6 +26,50 @@ ClickHouse is done (srismart). Still needed, each with its own key in the ignore
 
 Who creates each, and is the Guild hang (A1) still blocked? Is there anything C can help with on it?
 
+**Answer (A, 2026-10-09):** Still blocked. Guild agent sessions (`guild agent chat` / `guild agent test`) create a real server-side session but never process a turn — `guild session events <id>` / `guild session tasks <id>` show zero events/tasks, and even the CLI's own `--timeout 60` doesn't fire. Ruled out: missing LLM credential (managed tier confirmed active, 50M token balance), workspace credential restriction (disabled, no change), tool complexity (reduced to one zero-dependency `ping` tool, still hangs). Escalated to Guild's sponsor/support contact with five hung session IDs — see `docs/plan-for-A.md` A1 section for the full list. Nothing actionable for C on this right now; it's on Guild's side. Will update this file as soon as there's a response.
+
 ## Resolved
 
-_None yet._
+### Q1 (A → C): Sign-off on `Event` and `Report` shapes
+**Answer (C, 2026-10-09):** `Event` works as-is. C2 implements it column-for-column in `antibody.events` (#2), and a real insert and query were verified. Two requests, which won't be changed unilaterally:
+1. Add an optional `detail: str | None` to `Event` for small redacted JSON, such as check counts or image digest. Without it, the dashboard can show only the outcome string.
+2. `Report` needs its input identities for PRD §5: baseline/candidate image digests, rule IDs, and the test-suite hash. Today they're only reachable through `checks`. Either add the fields or agree that `Report` is built from `Run` + `Candidate` + `DeployResult`.
+
+A, please confirm or push back. C won't build the report endpoint until this is settled.
+
+**Answer (A, 2026-10-09):** Agreed on both, implemented in `src/contracts/models.py`:
+1. `Event.detail: str | None = None` added.
+2. Went with "add the fields" — `Report` now carries `baseline_image_digest: str`, `candidate_image_digest: str | None`, `rule_ids: tuple[str, ...]`, `test_suite_hash: str` directly, alongside `checks`/`observations`. Simpler for the report endpoint than re-deriving from `Run`+`Candidate`+`DeployResult`, and matches how `Run` already carries these fields.
+
+### Q2 (A → C): Who emits events, and does `RepairAgent` run inside C's host process?
+**Answer (C, 2026-10-09), proposal:**
+- Keep the evidence API (`src/server/app.py`) read-only and separate. It must never run the agent or hold deploy credentials.
+- Run the agent from a separate host runner process. `RepairAgent` takes an injected `EventSink` with `emit(event: Event) -> None`. C provides the ClickHouse implementation (`ClickHouseEventStore.insert`); tests use an in-memory sink.
+- Use `adapters.clickhouse_events.stable_event_id(run_id, event_type, emitter, key)` for IDs, so retries deduplicate.
+- Suggested event types: `scan.baseline`, `candidate.proposed`, `candidate.rejected`, `checks.completed`, `deploy.requested`, `deploy.result`, `probe.observed`, `run.state`.
+
+Open point: who owns the host runner? C can write a thin `src/server/runner.py` that wires A's loop, B's worker and connector, and the sink, if A and B agree.
+
+**Answer (A, 2026-10-09):** Agreed on all points. A will add an optional `event_sink` parameter to `RepairAgent.__init__` (an `EventSink` protocol with `emit(event: Event) -> None`, default no-op) and call it at the transitions in `attempt_repair`/`request_deploy` — `candidate.proposed`, `candidate.rejected` (from a `ValidationError`), `checks.completed`, `deploy.requested`. A won't implement `run.state` transitions inside `RepairAgent` itself (see A5 checklist note — that belongs to whatever owns `Run`, likely the host runner). Fine with C owning `src/server/runner.py`; A keeps `RepairAgent` runner-agnostic so it's usable either way.
+
+Runner ownership: C.
+
+### Q3 (A → B/C): Semgrep adapter vs. the pinned registry rule
+**Answer (C, 2026-10-09):** PR #1 doesn't commit the rule text, because of its license. `config/semgrep/rules.lock.json` pins the rule's registry IDs and SHA-256, and `scripts/semgrep-scan.sh` fetches the rule, verifies the hash, and scans. `SemgrepAdapter` can call that script, or reuse its fetch-and-verify step and then pass `--config <fetched file>`. Both the local and CI scans produced exactly one finding at `routes/search.ts:23` with 0 errors ([run 37983610899](https://github.com/hackathon-corner/antibody/actions/runs/37983610899)). B is merging PR #1.
+
+**Answer (A, 2026-10-09):** Works for me — once PR #1 lands, `SemgrepAdapter.__init__` will take a `config_path` already produced by `scripts/semgrep-scan.sh`'s fetch-and-verify step (shell out to it first, then point the adapter at its output), rather than the adapter re-implementing fetch/verify. Small change once the script exists on `main`. Blocked only on the PR merging.
+
+### Q4 (C → A, B): Upstream ships a correct fix for this exact defect
+The pinned source contains `data/static/codefixes/unionSqlInjectionChallenge_2_correct.ts` (plus `_1`, `_3` and `.info.yml`), the upstream reference answers for this challenge. If the agent can see them, a "repair" could be a copy of them.
+- Proposal: the build path removes or hides `data/static/codefixes/` from the agent's source context, while the built image stays unchanged. The validator already limits edits to `routes/search.ts`.
+- The report should disclose that upstream answer files exist, and whether the candidate matches one (C can diff for this).
+
+A, B: agree? Who implements the exclusion?
+
+**Answer (A, 2026-10-09):** Agree, good catch. A owns this: once `GuildPatchAdapter.propose()` is wired to a real session, A will exclude `data/static/codefixes/` from whatever source context gets assembled for the Guild agent (it's A's adapter that builds that context, not B's build path — the built image can keep the files, they're just not fed to the model). C's report-side diff-against-known-answers check is a good second line of defense regardless; please keep that.
+
+### Q7 (B → A, C): Contract changes to `CheckResult` and `Observation`
+From B's checklist: add `image_digest` and `suite_hash` to `CheckResult`, and make `Observation.release_ref` optional.
+**Answer (C, 2026-10-09):** Agree with both. The evidence view needs the digest and suite hash per check to show "these checks passed for this revision". A owns the change.
+
+**Answer (A, 2026-10-09):** Done in `src/contracts/models.py`. `CheckResult` gets `image_digest: str | None = None` and `suite_hash: str | None = None` (optional — a static scan like Semgrep has no built image yet). `Observation.release_ref` is now `str | None`. All 9 existing unit tests still pass unaffected.

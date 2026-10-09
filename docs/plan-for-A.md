@@ -8,7 +8,12 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 
 **Note:** `setup/pin-scan-baseline-spike` (B/C's earlier branch) is now stale relative to `main` — it has the Semgrep registry-rule pin (`config/semgrep/rules.lock.json`, `scripts/semgrep-scan.sh`) and B3's e2e check suite (`tests/e2e/juice-shop-checks.mjs`) that haven't landed on `main` yet. B is working on reconciling it. The Semgrep rule file is the one thing A still needs from it.
 
-**Contract change requests from B** (`docs/tasks/B-checklist.md`, "Contract review with A"): `CheckResult` needs `image_digest` and `suite_hash` fields (PRD §5 requires binding results to them); `Observation.release_ref` should be `str | None`, not required `str` (PRD §6 says "where observed", implying it can be absent). Not yet applied to `src/contracts/models.py` — pending confirmation via `docs/collab.md`.
+**`docs/collab.md` resolved (2026-10-09):** all five questions needing A's input answered and applied:
+- `CheckResult.image_digest`/`suite_hash` (both `str | None = None`) and `Observation.release_ref: str | None` — done in `src/contracts/models.py`
+- `Event.detail: str | None = None` added; `Report` now carries `baseline_image_digest`, `candidate_image_digest`, `rule_ids`, `test_suite_hash` directly
+- `RepairAgent` takes an optional `event_sink: EventSink` (protocol with `emit(event) -> None`, default no-op) and emits `candidate.proposed`/`candidate.rejected`/`checks.completed`/`deploy.requested` — `src/agent/loop.py`, smoke-tested
+- Agreed: A owns excluding `data/static/codefixes/` from the Guild agent's source context once A3 wires a real session (tracked below under A3)
+- `SemgrepAdapter` will shell out to B/C's `scripts/semgrep-scan.sh` fetch-and-verify step once PR #1 merges, rather than reimplementing registry-rule fetch
 
 ## A2 — Shared contracts (done first, unblocks everyone)
 
@@ -47,6 +52,7 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 - [x] `GuildPatchAdapter` stub — raises `GuildNotConfiguredError`/`NotImplementedError` rather than fabricating a candidate
 - [ ] ⏳ BLOCKED ON A1 — wire real Guild session into `GuildPatchAdapter.propose()`
 - [ ] Confirm Guild's actual output format (diff vs full-file) and adjust `CandidateValidator.changed_paths()` regex if needed
+- [ ] Exclude `data/static/codefixes/` (upstream reference answer files) from whatever source context gets assembled for the Guild agent (agreed with C in `docs/collab.md` Q4) — do this in the same pass as wiring the real session
 - [ ] End-to-end: real Semgrep finding → real Guild candidate → validator accepts/rejects
 
 ## A5 — Connect B's verification response to bounded agent revision
@@ -73,9 +79,9 @@ Blocking dependency: **B1** landed on `main` in `18348ca` (`config/targets/juice
 
 ## Cross-cutting / do not skip
 
-- [ ] Emit `Event` rows at each real transition (scan done, candidate proposed, candidate rejected/accepted, checks run, deploy requested) for C's evidence pipeline — not yet implemented anywhere; needs a decision on who calls C's event sink (A's loop, or a host wrapper around it)
-- [ ] Confirm with C whether `RepairAgent` lives inside C's host process or is called by it — affects whether `Event` emission belongs in `loop.py` or a thin wrapper
-- [ ] Record a fallback plan: if Guild access is blocked past the first checkpoint, document real failure (per PRD, a vendor failure is a legitimate run outcome, not something to fake)
+- [x] Emit `Event` rows at each real transition — `RepairAgent` takes an injected `EventSink`, emits `candidate.proposed`/`candidate.rejected`/`checks.completed`/`deploy.requested`. Resolved with C: C owns the host runner (`src/server/runner.py`) and the ClickHouse-backed sink implementation; A's `RepairAgent` stays runner-agnostic (default no-op sink).
+- [ ] `run.state` transitions (`validating` → `failed`/`unresolved` etc.) are not emitted by `RepairAgent` itself — belongs to whoever owns `Run`, i.e. C's host runner. Confirm C is picking this up.
+- [x] Fallback plan recorded: Guild blocker documented above with full evidence and escalated, per PRD's own framing of a vendor failure as a legitimate run outcome.
 
 ## Immediate next actions (in order)
 

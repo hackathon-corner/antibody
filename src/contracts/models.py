@@ -81,6 +81,11 @@ class CheckResult:
     adapter_origin: str
     """Which adapter/provider produced this result, e.g. 'semgrep', 'behavior-suite'."""
     detail: str | None = None
+    image_digest: str | None = None
+    """Built image this check ran against. None for checks that run against
+    source directly (e.g. a static Semgrep scan with no built image yet)."""
+    suite_hash: str | None = None
+    """Hash of the independent check-suite version that produced this result."""
 
 
 @dataclass(frozen=True)
@@ -105,7 +110,8 @@ class Observation:
     url: str
     target_id: str
     probe_id: str
-    release_ref: str
+    release_ref: str | None
+    """Release the probe observed at the time, where known."""
     status_code: int
     body_digest: str
     observed_at: datetime
@@ -123,6 +129,8 @@ class Event:
     observed_at: datetime
     outcome: str
     artifact_ref: str | None = None
+    detail: str | None = None
+    """Small redacted JSON string, e.g. check counts or an image digest, for dashboard display."""
 
 
 @dataclass(frozen=True)
@@ -131,6 +139,10 @@ class Report:
     run_id: str
     source_commit: str
     source_links: tuple[str, ...]
+    baseline_image_digest: str
+    candidate_image_digest: str | None
+    rule_ids: tuple[str, ...]
+    test_suite_hash: str
     checks: tuple[CheckResult, ...]
     observations: tuple[Observation, ...]
     candidate_origin: str
