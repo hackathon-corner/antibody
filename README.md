@@ -6,12 +6,18 @@ Antibody repairs one real SQL-injection defect in a team-owned OWASP Juice Shop 
 
 **Pitch:** "An autonomous repair agent that closes a security hole without closing the business."
 
+## Live links
+
+- **Evidence dashboard** (Akash, reads ClickHouse): http://d0ischq47pee1b61pmtjbh3ido.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so
+- **Vulnerable baseline** (our source-built Juice Shop on Akash): http://o7ne4et1e5duvff3f1697lr794.ingress.h6i-dedicated.eu-se-1.digitalfrontier.so
+- **Source → image → checks → Semgrep, in CI**: https://github.com/hackathon-corner/antibody/actions/runs/37983610899
+
 ## Status (2026-10-09)
 
-Core pipeline is implemented and unit-tested end to end (114 tests passing): scan → propose → validate → build → check → deploy → probe → evidence.
+Core pipeline is implemented and unit-tested end to end (120 tests passing): scan → propose → validate → build → check → deploy → probe → evidence.
 
 - **Target pinned**: Juice Shop `v20.2.0`, defect at `routes/search.ts` (SQL injection in product search). Baseline and candidate both built and deployed from source.
-- **Guild AI**: real agent session confirmed working (`docs/plan-for-A.md` A1) after resolving a sponsor-side 30–60s accept-latency issue. `GuildPatchAdapter` wired for real sessions.
+- **Guild AI**: real agent session confirmed working (`docs/plan-for-A.md` A1) after resolving a sponsor-side 30–60s accept-latency issue. `GuildPatchAdapter` wired for real sessions. A live Guild session turned the real Semgrep finding into a parameterized-query patch that passed host validation.
 - **Semgrep**: baseline finding reproduced (`routes/search.ts:23`, `express-sequelize-injection`), rescan confirms candidate clears it. Adapter matches `check_id` by suffix (registry rules get a path-prefixed ID — see `docs/collab.md` Q10).
 - **Independent verification worker (B4)**: isolated build + 5-check suite (ordinary search, edge cases, injection regression, access boundary, change-scope), runs in a sandboxed container the agent/candidate can't touch. Verified against a real operator-supplied reference repair (all 5 pass) and two bad candidates (rejected — see below).
 - **Senso**: live-verified source-linked remediation guidance (OWASP SQL Injection Cheat Sheet + Sequelize v6 docs), retrieved and cited in candidate context.
@@ -29,6 +35,7 @@ See [docs/demo-script.md](docs/demo-script.md) for the 3-minute walkthrough and 
 - [Builder A implementation plan and checklist](docs/plan-for-A.md)
 - [Builder B checklist](docs/tasks/B-checklist.md)
 - [3-minute demo script](docs/demo-script.md)
+- [Presentation (PDF)](docs/antibody-presentation.pdf)
 - [Decision log / open questions](docs/collab.md)
 - [Vendor setup checklist](docs/vendor-setup/README.md)
 - [Repository structure](docs/STRUCTURE.md)
@@ -40,8 +47,9 @@ A owns agent/repair; B owns target, independent verification, and deployment; C 
 
 ```mermaid
 flowchart LR
-  Sources[Senso guidance] --> Agent[Guild repair agent]
-  Agent --> Scanner[Semgrep adapter]
+  Runner[Host runner] --> Scanner[Semgrep adapter]
+  Scanner -->|finding| Agent[Guild repair agent]
+  Sources[Senso guidance] --> Agent
   Agent --> Validator[Host validates candidate]
   Validator --> Worker[Isolated build + independent checks]
   Worker -->|Required checks pass| Deploy[Akash deploy connector]
@@ -60,6 +68,24 @@ flowchart LR
 4. The host validates the diff's scope (only the allowed file), builds it in an isolated container, and runs B's independent check suite — which the agent never sees and can't edit.
 5. Only a candidate that passes every required check gets deployed, by exact image digest, through the Akash connector.
 6. External HTTP probes verify the live deployment, and every step is recorded as an event in ClickHouse, queryable through the evidence dashboard.
+
+Built-in trust features:
+
+- **Answer-key detection**: Juice Shop ships its own reference fixes in `data/static/codefixes/`. Every passing candidate is compared against them, and the result is recorded as an `answer.match` event, so a copied answer can't pass silently.
+- **Read-only evidence**: the public dashboard reads ClickHouse with a `SELECT`-only login; only the host runner can write events.
+- **Only outside proof completes a run**: an accepted deploy waits in `verifying` until the public probes pass.
+
+### Run it
+
+```
+python scripts/target.py source --out runtime/source     # pinned Juice Shop source
+python scripts/run_repair.py --source runtime/source      # Semgrep -> Senso -> Guild -> checks -> Akash -> probes
+python scripts/run_repair.py --source runtime/source \
+  --supplied-patch tests/fixtures/juice-shop/candidates/mutant-where-1-0.patch \
+  --origin operator-supplied-bad-candidate                # same gate, disclosed origin
+```
+
+Each run appears on the evidence dashboard as it happens.
 
 ## Tech stack
 
@@ -80,11 +106,11 @@ Defined in [`src/contracts/models.py`](src/contracts/models.py): `Run`, `Candida
 ## Running tests
 
 ```
-pip install -e .
+pip install -e '.[dev]'
 pytest
 ```
 
-114 unit tests cover the agent loop, validator, adapters (Semgrep, Senso, ClickHouse, Akash deploy, public probe, check worker), answer-matching against upstream's known reference fixes, and adversarial-candidate rejection.
+120 unit tests cover the agent loop, validator, adapters (Semgrep, Senso, ClickHouse, Akash deploy, public probe, check worker), answer-matching against upstream's known reference fixes, and adversarial-candidate rejection.
 
 ## Project layout
 
@@ -93,3 +119,9 @@ See [docs/STRUCTURE.md](docs/STRUCTURE.md) for the full repo map; `README.md` fi
 ## What "preserve" means here
 
 The report says "these checks passed for this revision," not "the application is secure." Juice Shop intentionally contains other vulnerabilities; this project fixes one, verifiably, and discloses exactly that scope.
+
+## Credits and licenses
+
+- [OWASP Juice Shop](https://github.com/juice-shop/juice-shop) (MIT), pinned at `v20.2.0`. Its vulnerabilities are intentional training material; this project fixes one in our own deployment and does not report it upstream.
+- [OWASP SQL Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html) (CC BY-SA 4.0) and [Sequelize v6 Raw Queries docs](https://sequelize.org/docs/v6/core-concepts/raw-queries/), stored with attribution in Senso as repair guidance.
+- Semgrep rule `express-sequelize-injection` from the Semgrep Registry (Semgrep Rules License), fetched by hash at scan time and not redistributed here.
